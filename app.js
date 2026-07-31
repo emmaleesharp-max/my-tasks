@@ -282,9 +282,9 @@ function buildRow(t) {
     grid.appendChild(typeField);
     mountCombo(typeField.lastChild, t.type, uniqueValues("type"), (v) => patchTask(t.id, { type: v }), "Type");
 
-    const contextField = field("Context", el("div"));
+    const contextField = field("Location", el("div"));
     grid.appendChild(contextField);
-    mountCombo(contextField.lastChild, t.context, uniqueValues("context"), (v) => patchTask(t.id, { context: v }), "Context");
+    mountCombo(contextField.lastChild, t.context, uniqueValues("context"), (v) => patchTask(t.id, { context: v }), "Location");
 
     const statusSel = el("select", inputCls);
     ["To do", "Done"].forEach((s) => { const o = el("option", null, s); if (s === t.status) o.selected = true; statusSel.appendChild(o); });
@@ -484,7 +484,7 @@ const mContextContainer = document.getElementById("m-context");
 function renderModalCombos() {
   mountCombo(mProjectContainer, state.draft.project, uniqueValues("project"), (v) => { state.draft.project = v; renderModalCombos(); updateCreateBtnState(); }, "Project");
   mountCombo(mTypeContainer, state.draft.type, uniqueValues("type"), (v) => { state.draft.type = v; renderModalCombos(); updateCreateBtnState(); }, "Type");
-  mountCombo(mContextContainer, state.draft.context, uniqueValues("context"), (v) => { state.draft.context = v; renderModalCombos(); }, "Context");
+  mountCombo(mContextContainer, state.draft.context, uniqueValues("context"), (v) => { state.draft.context = v; renderModalCombos(); }, "Location");
 }
 
 function openAddModal() {
@@ -592,7 +592,7 @@ function parseImportLines() {
 function renderImportCombos() {
   mountCombo(importProjectContainer, importDraft.project, uniqueValues("project"), (v) => { importDraft.project = v; renderImportCombos(); }, "Project");
   mountCombo(importTypeContainer, importDraft.type, uniqueValues("type"), (v) => { importDraft.type = v; renderImportCombos(); }, "Type");
-  mountCombo(importContextContainer, importDraft.context, uniqueValues("context"), (v) => { importDraft.context = v; renderImportCombos(); }, "Context");
+  mountCombo(importContextContainer, importDraft.context, uniqueValues("context"), (v) => { importDraft.context = v; renderImportCombos(); }, "Location");
 }
 
 function updateImportBtnState() {

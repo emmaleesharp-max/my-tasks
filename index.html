@@ -50,7 +50,7 @@
             <button data-view="board" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">Board</button>
             <button data-view="project" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">Project</button>
             <button data-view="type" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">Type</button>
-            <button data-view="context" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">Context</button>
+            <button data-view="context" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">Location</button>
             <div class="w-px h-4 bg-gray-200 mx-1"></div>
             <label class="inline-flex items-center gap-1.5 text-xs text-gray-500">
               <input type="checkbox" id="hide-done" /> Hide done
@@ -71,7 +71,7 @@
               <option>Low</option><option>Medium</option><option>High</option>
             </select>
             <select id="filter-context" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600">
-              <option value="All">Any context</option>
+              <option value="All">Any location</option>
             </select>
           </div>
         </div>
@@ -141,7 +141,7 @@
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="text-xs font-medium text-gray-500">Context</label>
+            <label class="text-xs font-medium text-gray-500">Location</label>
             <div id="m-context" class="mt-1"></div>
           </div>
           <div>
@@ -174,9 +174,9 @@
       <p class="text-xs text-gray-500 mb-3">
         Paste a list of tasks — one per line. If you copy multiple columns
         straight from a spreadsheet (Title, then Project, then Type, then
-        Context), each row will use its own values. Plain lines with just a
+        Location), each row will use its own values. Plain lines with just a
         title (e.g. copied from Google Tasks or Notion) fall back to the
-        project/type/context you set below.
+        project/type/location you set below.
       </p>
 
       <label class="text-xs font-medium text-gray-500">Tasks (one per line)</label>
@@ -202,7 +202,7 @@
           </select>
         </div>
         <div>
-          <label class="text-xs font-medium text-gray-500">Context (default)</label>
+          <label class="text-xs font-medium text-gray-500">Location (default)</label>
           <div id="import-context" class="mt-1"></div>
         </div>
       </div>
