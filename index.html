@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ledger — Task Tracker</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-gray-50">
+
+  <!-- Login screen -->
+  <div id="login-screen" class="min-h-screen flex items-center justify-center p-6">
+    <div class="max-w-sm w-full bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
+      <p class="text-xs font-semibold tracking-wide text-indigo-600 uppercase mb-3">Ledger</p>
+      <h1 class="text-2xl font-semibold text-gray-900 mb-2">Your tasks, synced.</h1>
+      <p class="text-sm text-gray-500 mb-6">Sign in to open your list on any device.</p>
+      <button id="google-signin" class="w-full text-sm font-medium bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700">
+        Sign in with Google
+      </button>
+      <p id="login-error" class="text-xs text-rose-500 mt-3 min-h-[16px]"></p>
+    </div>
+  </div>
+
+  <!-- App -->
+  <div id="app" class="hidden min-h-screen">
+    <div class="w-full max-w-3xl mx-auto py-8 px-4">
+
+      <div class="flex items-center justify-between mb-5">
+        <h1 class="text-xl font-semibold text-gray-900">Ledger</h1>
+        <button id="signout" class="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2">Sign out</button>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm">
+        <div class="p-5 border-b border-gray-100">
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-start gap-2">
+            <div id="title-wrap" class="flex-1 flex items-center gap-2 border rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-indigo-200 border-gray-200">
+              <span class="text-gray-400 shrink-0">+</span>
+              <input id="quick-title" class="flex-1 text-sm outline-none placeholder:text-gray-400 min-w-0" placeholder="Task title…" />
+            </div>
+            <input id="quick-project" list="project-list" class="text-sm px-3 py-2 rounded-lg border outline-none w-full sm:w-36 placeholder:text-gray-400 border-gray-200" placeholder="Project *" />
+            <div class="w-full sm:w-44">
+              <input id="quick-type" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200" placeholder="Type *" />
+              <div id="quick-type-chips" class="flex flex-wrap gap-1 mt-1.5"></div>
+            </div>
+            <button id="open-modal-btn" class="text-sm font-medium bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shrink-0">Add</button>
+          </div>
+          <p id="add-error" class="text-xs text-rose-500 mt-1.5 hidden">Title, project, and type are all required.</p>
+
+          <div class="flex flex-wrap items-center gap-2 mt-3" id="view-tabs">
+            <button data-view="list" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">List</button>
+            <button data-view="board" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">Board</button>
+            <button data-view="project" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">Project</button>
+            <button data-view="type" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">Type</button>
+            <div class="w-px h-4 bg-gray-200 mx-1"></div>
+            <label class="inline-flex items-center gap-1.5 text-xs text-gray-500">
+              <input type="checkbox" id="hide-done" /> Hide done
+            </label>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 mt-3">
+            <div class="flex items-center gap-1.5 border border-gray-200 rounded-lg px-2.5 py-1.5">
+              <span class="text-gray-400 text-xs">⌕</span>
+              <input id="search-input" class="text-xs outline-none w-32 placeholder:text-gray-400" placeholder="Search…" />
+            </div>
+            <select id="filter-priority" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600">
+              <option value="All">Any priority</option>
+              <option>Low</option><option>Medium</option><option>High</option>
+            </select>
+            <select id="filter-energy" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600">
+              <option value="All">Any energy</option>
+              <option>Low</option><option>Medium</option><option>High</option>
+            </select>
+            <select id="filter-context" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600">
+              <option value="All">Any context</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="content" class="p-5"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add task modal -->
+  <div id="add-modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl border border-gray-200 w-full max-w-md p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-semibold text-gray-900">New task</h2>
+        <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600">✕</button>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <div>
+          <label class="text-xs font-medium text-gray-500">Title</label>
+          <input id="m-title" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-medium text-gray-500">Project</label>
+            <input id="m-project" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1" placeholder="Project" />
+            <div id="m-project-chips" class="flex flex-wrap gap-1 mt-1.5"></div>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-500">Type</label>
+            <input id="m-type" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1" placeholder="Type" />
+            <div id="m-type-chips" class="flex flex-wrap gap-1 mt-1.5"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-medium text-gray-500">Priority</label>
+            <select id="m-priority" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1">
+              <option>Low</option><option selected>Medium</option><option>High</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-500">Energy</label>
+            <select id="m-energy" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1">
+              <option>Low</option><option selected>Medium</option><option>High</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-medium text-gray-500">Deadline</label>
+            <input id="m-deadline" type="date" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1" />
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-500">Estimate (min)</label>
+            <input id="m-estimate" type="number" min="0" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1" placeholder="30" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-medium text-gray-500">Context</label>
+            <input id="m-context" list="context-list" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1" placeholder="e.g. Desk" />
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-500">Repeats</label>
+            <select id="m-recurrence" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1">
+              <option>None</option><option>Daily</option><option>Weekly</option><option>Monthly</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-5">
+        <button id="cancel-modal-btn" class="text-sm px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50">Cancel</button>
+        <button id="create-task-btn" class="text-sm font-medium bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed" disabled>Create task</button>
+      </div>
+    </div>
+  </div>
+
+  <datalist id="project-list"></datalist>
+  <datalist id="context-list"></datalist>
+
+  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
