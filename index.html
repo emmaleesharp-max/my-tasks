@@ -39,7 +39,14 @@
               <input id="quick-title" class="flex-1 text-sm outline-none placeholder:text-gray-400 min-w-0" placeholder="Task title…" />
             </div>
             <div id="quick-project" class="w-full sm:w-36"></div>
-            <div id="quick-type" class="w-full sm:w-44"></div>
+            <select id="quick-type" class="text-sm px-3 py-2 rounded-lg border outline-none w-full sm:w-36 text-gray-600 border-gray-200">
+              <option value="">Type *</option>
+              <option>Email</option>
+              <option>Meeting</option>
+              <option>Finance</option>
+              <option>Errand</option>
+              <option>Admin</option>
+            </select>
             <button id="open-modal-btn" class="text-sm font-medium bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shrink-0">Add</button>
             <button id="open-import-btn" class="text-sm font-medium border border-gray-200 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 shrink-0">Import</button>
           </div>
@@ -50,7 +57,6 @@
             <button data-view="board" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">Board</button>
             <button data-view="project" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">Project</button>
             <button data-view="type" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">Type</button>
-            <button data-view="context" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">Location</button>
             <div class="w-px h-4 bg-gray-200 mx-1"></div>
             <label class="inline-flex items-center gap-1.5 text-xs text-gray-500">
               <input type="checkbox" id="hide-done" /> Hide done
@@ -70,8 +76,13 @@
               <option value="All">Any energy</option>
               <option>Low</option><option>Medium</option><option>High</option>
             </select>
-            <select id="filter-context" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600">
-              <option value="All">Any location</option>
+            <select id="filter-type" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600">
+              <option value="All">Any type</option>
+              <option>Email</option>
+              <option>Meeting</option>
+              <option>Finance</option>
+              <option>Errand</option>
+              <option>Admin</option>
             </select>
           </div>
         </div>
@@ -102,7 +113,14 @@
           </div>
           <div>
             <label class="text-xs font-medium text-gray-500">Type</label>
-            <div id="m-type" class="mt-1"></div>
+            <select id="m-type" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1">
+              <option value="">Select…</option>
+              <option>Email</option>
+              <option>Meeting</option>
+              <option>Finance</option>
+              <option>Errand</option>
+              <option>Admin</option>
+            </select>
           </div>
         </div>
 
@@ -141,10 +159,6 @@
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="text-xs font-medium text-gray-500">Location</label>
-            <div id="m-context" class="mt-1"></div>
-          </div>
-          <div>
             <label class="text-xs font-medium text-gray-500">Repeats</label>
             <select id="m-recurrence" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1">
               <option>None</option><option>Daily</option><option>Weekly</option><option>Monthly</option>
@@ -173,10 +187,10 @@
       </div>
       <p class="text-xs text-gray-500 mb-3">
         Paste a list of tasks — one per line. If you copy multiple columns
-        straight from a spreadsheet (Title, then Project, then Type, then
-        Location), each row will use its own values. Plain lines with just a
-        title (e.g. copied from Google Tasks or Notion) fall back to the
-        project/type/location you set below.
+        straight from a spreadsheet (Title, then Project, then Type), each
+        row will use its own values. Plain lines with just a title (e.g.
+        copied from Google Tasks or Notion) fall back to the project/type
+        you set below.
       </p>
 
       <label class="text-xs font-medium text-gray-500">Tasks (one per line)</label>
@@ -190,7 +204,14 @@
         </div>
         <div>
           <label class="text-xs font-medium text-gray-500">Type (default)</label>
-          <div id="import-type" class="mt-1"></div>
+          <select id="import-type" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1">
+            <option value="">Select…</option>
+            <option>Email</option>
+            <option>Meeting</option>
+            <option>Finance</option>
+            <option>Errand</option>
+            <option>Admin</option>
+          </select>
         </div>
       </div>
 
@@ -200,10 +221,6 @@
           <select id="import-priority" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1">
             <option>Low</option><option selected>Medium</option><option>High</option>
           </select>
-        </div>
-        <div>
-          <label class="text-xs font-medium text-gray-500">Location (default)</label>
-          <div id="import-context" class="mt-1"></div>
         </div>
       </div>
 

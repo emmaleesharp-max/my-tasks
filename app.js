@@ -18,7 +18,8 @@ const PRIORITIES = ["Low", "Medium", "High"];
 const ENERGIES = ["Low", "Medium", "High"];
 const RECURRENCES = ["None", "Daily", "Weekly", "Monthly"];
 const ESTIMATES = ["5 minutes", "15 minutes", "30 minutes", "60 minutes", "Over an hour"];
-const VIEWS = ["list", "board", "project", "type", "context"];
+const TYPES = ["Email", "Meeting", "Finance", "Errand", "Admin"];
+const VIEWS = ["list", "board", "project", "type"];
 
 const state = {
   view: "list",
@@ -26,7 +27,7 @@ const state = {
   hideDone: false,
   filterPriority: "All",
   filterEnergy: "All",
-  filterContext: "All",
+  filterType: "All",
   expandedId: null,
   showAddModal: false,
   draft: null
@@ -132,7 +133,7 @@ async function toggleDone(t) {
       title: t.title, notes: t.notes || "", project: t.project || "",
       type: t.type || "", priority: t.priority || "Medium", status: "To do",
       deadline: next, estimate: t.estimate || "", energy: t.energy || "Medium",
-      context: t.context || "", recurrence: t.recurrence, starred: false
+      recurrence: t.recurrence, starred: false
     });
   }
 }
@@ -143,10 +144,10 @@ function filteredTasks() {
     if (state.hideDone && t.status === "Done") return false;
     if (state.filterPriority !== "All" && t.priority !== state.filterPriority) return false;
     if (state.filterEnergy !== "All" && t.energy !== state.filterEnergy) return false;
-    if (state.filterContext !== "All" && t.context !== state.filterContext) return false;
+    if (state.filterType !== "All" && t.type !== state.filterType) return false;
     if (state.search) {
       const s = state.search.toLowerCase();
-      const hit = [t.title, t.project, t.type, t.context].some((v) => (v || "").toLowerCase().includes(s));
+      const hit = [t.title, t.project, t.type].some((v) => (v || "").toLowerCase().includes(s));
       if (!hit) return false;
     }
     return true;
@@ -235,7 +236,6 @@ function buildRow(t) {
   const meta = el("div", "flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-gray-500");
   if (t.project) meta.appendChild(el("span", null, "📁 " + t.project));
   if (t.type) meta.appendChild(el("span", "px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600", t.type));
-  if (t.context) meta.appendChild(el("span", null, "📍 " + t.context));
   if (t.estimate) meta.appendChild(el("span", null, "⏱ " + t.estimate));
   if (t.recurrence && t.recurrence !== "None") meta.appendChild(el("span", null, "↻ " + t.recurrence));
   body.appendChild(title);
@@ -278,13 +278,14 @@ function buildRow(t) {
     grid.appendChild(projectField);
     mountCombo(projectField.lastChild, t.project, uniqueValues("project"), (v) => patchTask(t.id, { project: v }), "Project");
 
-    const typeField = field("Type", el("div"));
-    grid.appendChild(typeField);
-    mountCombo(typeField.lastChild, t.type, uniqueValues("type"), (v) => patchTask(t.id, { type: v }), "Type");
-
-    const contextField = field("Location", el("div"));
-    grid.appendChild(contextField);
-    mountCombo(contextField.lastChild, t.context, uniqueValues("context"), (v) => patchTask(t.id, { context: v }), "Location");
+    const typeSel = el("select", inputCls);
+    const typePlaceholder = el("option", null, "Select…");
+    typePlaceholder.value = "";
+    if (!t.type) typePlaceholder.selected = true;
+    typeSel.appendChild(typePlaceholder);
+    TYPES.forEach((ty) => { const o = el("option", null, ty); if (ty === t.type) o.selected = true; typeSel.appendChild(o); });
+    typeSel.addEventListener("change", (e) => patchTask(t.id, { type: e.target.value }));
+    grid.appendChild(field("Type", typeSel));
 
     const statusSel = el("select", inputCls);
     ["To do", "Done"].forEach((s) => { const o = el("option", null, s); if (s === t.status) o.selected = true; statusSel.appendChild(o); });
@@ -422,19 +423,18 @@ const searchInput = document.getElementById("search-input");
 const hideDoneInput = document.getElementById("hide-done");
 const filterPriority = document.getElementById("filter-priority");
 const filterEnergy = document.getElementById("filter-energy");
-const filterContext = document.getElementById("filter-context");
+const filterType = document.getElementById("filter-type");
 const quickTitle = document.getElementById("quick-title");
 const quickProjectContainer = document.getElementById("quick-project");
-const quickTypeContainer = document.getElementById("quick-type");
+const quickType = document.getElementById("quick-type");
 let quickProjectValue = "";
-let quickTypeValue = "";
 const addError = document.getElementById("add-error");
 
 searchInput.addEventListener("input", (e) => { state.search = e.target.value; render(); });
 hideDoneInput.addEventListener("change", (e) => { state.hideDone = e.target.checked; render(); });
 filterPriority.addEventListener("change", (e) => { state.filterPriority = e.target.value; render(); });
 filterEnergy.addEventListener("change", (e) => { state.filterEnergy = e.target.value; render(); });
-filterContext.addEventListener("change", (e) => { state.filterContext = e.target.value; render(); });
+filterType.addEventListener("change", (e) => { state.filterType = e.target.value; render(); });
 
 document.querySelectorAll(".view-btn").forEach((btn) => {
   btn.addEventListener("click", () => { state.view = btn.dataset.view; render(); });
@@ -447,11 +447,6 @@ function renderChrome() {
       (active ? "bg-gray-900 text-white border-gray-900" : "border-gray-200 text-gray-600 hover:bg-gray-50");
   });
   mountCombo(quickProjectContainer, quickProjectValue, uniqueValues("project"), (v) => { quickProjectValue = v; renderChrome(); }, "Project *");
-  mountCombo(quickTypeContainer, quickTypeValue, uniqueValues("type"), (v) => { quickTypeValue = v; renderChrome(); }, "Type *");
-  const currentContext = filterContext.value;
-  filterContext.innerHTML = '<option value="All">Any context</option>';
-  uniqueValues("context").forEach((c) => { const o = document.createElement("option"); o.value = c; o.textContent = c; filterContext.appendChild(o); });
-  filterContext.value = currentContext || "All";
 }
 
 function render() {
@@ -461,7 +456,6 @@ function render() {
   else if (state.view === "board") renderBoard(contentEl);
   else if (state.view === "project") renderGrouped(contentEl, "project");
   else if (state.view === "type") renderGrouped(contentEl, "type");
-  else if (state.view === "context") renderGrouped(contentEl, "context");
 }
 
 // ---------- Add modal ----------
@@ -478,35 +472,32 @@ const mEstimate = document.getElementById("m-estimate");
 const mRecurrence = document.getElementById("m-recurrence");
 const mNotes = document.getElementById("m-notes");
 const mProjectContainer = document.getElementById("m-project");
-const mTypeContainer = document.getElementById("m-type");
-const mContextContainer = document.getElementById("m-context");
+const mType = document.getElementById("m-type");
 
 function renderModalCombos() {
   mountCombo(mProjectContainer, state.draft.project, uniqueValues("project"), (v) => { state.draft.project = v; renderModalCombos(); updateCreateBtnState(); }, "Project");
-  mountCombo(mTypeContainer, state.draft.type, uniqueValues("type"), (v) => { state.draft.type = v; renderModalCombos(); updateCreateBtnState(); }, "Type");
-  mountCombo(mContextContainer, state.draft.context, uniqueValues("context"), (v) => { state.draft.context = v; renderModalCombos(); }, "Location");
 }
 
 function openAddModal() {
   const title = quickTitle.value.trim();
   const project = quickProjectValue.trim();
-  const type = quickTypeValue.trim();
+  const type = quickType.value.trim();
   const quickTitleControl = quickTitle;
   const quickProjectControl = quickProjectContainer.querySelector("select, input");
-  const quickTypeControl = quickTypeContainer.querySelector("select, input");
   if (!title || !project || !type) {
     addError.classList.remove("hidden");
     if (!title) quickTitleControl.classList.add("border-rose-300"); else quickTitleControl.classList.remove("border-rose-300");
     if (quickProjectControl) { if (!project) quickProjectControl.classList.add("border-rose-300"); else quickProjectControl.classList.remove("border-rose-300"); }
-    if (quickTypeControl) { if (!type) quickTypeControl.classList.add("border-rose-300"); else quickTypeControl.classList.remove("border-rose-300"); }
+    if (!type) quickType.classList.add("border-rose-300"); else quickType.classList.remove("border-rose-300");
     return;
   }
   addError.classList.add("hidden");
   state.draft = {
     title, project, type, priority: "Medium", energy: "Medium",
-    deadline: "", estimate: "", context: "", recurrence: "None", notes: ""
+    deadline: "", estimate: "", recurrence: "None", notes: ""
   };
   mTitle.value = title;
+  mType.value = type;
   mPriority.value = "Medium";
   mEnergy.value = "Medium";
   mDeadline.value = "";
@@ -534,6 +525,7 @@ quickTitle.addEventListener("keydown", (e) => { if (e.key === "Enter") openAddMo
 closeModalBtn.addEventListener("click", closeAddModal);
 cancelModalBtn.addEventListener("click", closeAddModal);
 mTitle.addEventListener("input", (e) => { state.draft.title = e.target.value; updateCreateBtnState(); });
+mType.addEventListener("change", (e) => { state.draft.type = e.target.value; updateCreateBtnState(); });
 mPriority.addEventListener("change", (e) => { state.draft.priority = e.target.value; });
 mEnergy.addEventListener("change", (e) => { state.draft.energy = e.target.value; });
 mDeadline.addEventListener("change", (e) => { state.draft.deadline = e.target.value; });
@@ -547,11 +539,11 @@ createTaskBtn.addEventListener("click", async () => {
   await createTask({
     title: d.title.trim(), notes: d.notes || "", project: d.project.trim(), type: d.type.trim(),
     priority: d.priority, status: "To do", deadline: d.deadline, estimate: d.estimate,
-    energy: d.energy, context: d.context, recurrence: d.recurrence, starred: false
+    energy: d.energy, recurrence: d.recurrence, starred: false
   });
   quickTitle.value = "";
   quickProjectValue = "";
-  quickTypeValue = "";
+  quickType.value = "";
   renderChrome();
   closeAddModal();
 });
@@ -571,10 +563,9 @@ const importTextarea = document.getElementById("import-textarea");
 const importCount = document.getElementById("import-count");
 const importPriority = document.getElementById("import-priority");
 const importProjectContainer = document.getElementById("import-project");
-const importTypeContainer = document.getElementById("import-type");
-const importContextContainer = document.getElementById("import-context");
+const importType = document.getElementById("import-type");
 
-let importDraft = { project: "", type: "", context: "" };
+let importDraft = { project: "" };
 
 function parseImportLines() {
   return importTextarea.value
@@ -584,15 +575,12 @@ function parseImportLines() {
     .map((cols) => ({
       title: cols[0],
       project: cols[1] || "",
-      type: cols[2] || "",
-      context: cols[3] || ""
+      type: cols[2] || ""
     }));
 }
 
 function renderImportCombos() {
   mountCombo(importProjectContainer, importDraft.project, uniqueValues("project"), (v) => { importDraft.project = v; renderImportCombos(); }, "Project");
-  mountCombo(importTypeContainer, importDraft.type, uniqueValues("type"), (v) => { importDraft.type = v; renderImportCombos(); }, "Type");
-  mountCombo(importContextContainer, importDraft.context, uniqueValues("context"), (v) => { importDraft.context = v; renderImportCombos(); }, "Location");
 }
 
 function updateImportBtnState() {
@@ -600,9 +588,10 @@ function updateImportBtnState() {
 }
 
 function openImportModal() {
-  importDraft = { project: "", type: "", context: "" };
+  importDraft = { project: "" };
   importTextarea.value = "";
   importPriority.value = "Medium";
+  importType.value = "";
   importCount.textContent = "0 tasks will be created";
   renderImportCombos();
   updateImportBtnState();
@@ -633,13 +622,12 @@ doImportBtn.addEventListener("click", async () => {
       title: row.title,
       notes: "",
       project: row.project || importDraft.project.trim(),
-      type: row.type || importDraft.type.trim(),
+      type: row.type || importType.value,
       priority: importPriority.value,
       status: "To do",
       deadline: "",
       estimate: "",
       energy: "Medium",
-      context: row.context || importDraft.context,
       recurrence: "None",
       starred: false
     })));
