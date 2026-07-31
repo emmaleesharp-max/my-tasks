@@ -161,13 +161,52 @@ function el(tag, cls, text) {
   return e;
 }
 
-function comboInput(value, listId, placeholder, onChange) {
-  const input = el("input", inputCls);
-  input.value = value || "";
-  input.placeholder = placeholder || "";
-  input.setAttribute("list", listId);
-  input.addEventListener("change", (e) => onChange(e.target.value));
-  return input;
+function mountCombo(container, currentValue, options, onCommit, placeholder) {
+  container.innerHTML = "";
+  const uniq = [...new Set(options)].filter(Boolean);
+  if (currentValue && !uniq.includes(currentValue)) uniq.push(currentValue);
+  uniq.sort();
+
+  const select = el("select", inputCls);
+  const placeholderOpt = el("option", null, placeholder || "Select…");
+  placeholderOpt.value = "";
+  if (!currentValue) placeholderOpt.selected = true;
+  select.appendChild(placeholderOpt);
+
+  uniq.forEach((o) => {
+    const op = el("option", null, o);
+    op.value = o;
+    if (o === currentValue) op.selected = true;
+    select.appendChild(op);
+  });
+
+  const addOpt = el("option", null, "+ Add new…");
+  addOpt.value = "__add_new__";
+  select.appendChild(addOpt);
+
+  select.addEventListener("change", (e) => {
+    if (e.target.value === "__add_new__") {
+      container.innerHTML = "";
+      const input = el("input", inputCls);
+      input.placeholder = "Type a new value…";
+      container.appendChild(input);
+      input.focus();
+      let committed = false;
+      const commit = () => {
+        if (committed) return;
+        committed = true;
+        const v = input.value.trim();
+        if (v) onCommit(v);
+        else mountCombo(container, currentValue, options, onCommit, placeholder);
+      };
+      input.addEventListener("keydown", (ev) => { if (ev.key === "Enter") input.blur(); });
+      input.addEventListener("blur", commit);
+    } else {
+      onCommit(e.target.value);
+    }
+  });
+
+  container.appendChild(select);
 }
 
 function field(label, node) {
@@ -218,11 +257,17 @@ function buildRow(t) {
     const panel = el("div", "px-3.5 pb-4 pt-3 border-t border-gray-100 bg-gray-50/60");
     const grid = el("div", "grid grid-cols-2 sm:grid-cols-4 gap-3");
 
-    grid.appendChild(field("Project", comboInput(t.project, "project-list", "e.g. Q3 launch", (v) => patchTask(t.id, { project: v }))));
-    grid.appendChild(field("Type", comboInput(t.type, "type-list", "e.g. Email follow-up", (v) => patchTask(t.id, { type: v }))));
+    const projectField = field("Project", el("div"));
+    grid.appendChild(projectField);
+    mountCombo(projectField.lastChild, t.project, uniqueValues("project"), (v) => patchTask(t.id, { project: v }), "Project");
 
-    const contextInput = comboInput(t.context, "context-list", "e.g. Desk", (v) => patchTask(t.id, { context: v }));
-    grid.appendChild(field("Context", contextInput));
+    const typeField = field("Type", el("div"));
+    grid.appendChild(typeField);
+    mountCombo(typeField.lastChild, t.type, uniqueValues("type"), (v) => patchTask(t.id, { type: v }), "Type");
+
+    const contextField = field("Context", el("div"));
+    grid.appendChild(contextField);
+    mountCombo(contextField.lastChild, t.context, uniqueValues("context"), (v) => patchTask(t.id, { context: v }), "Context");
 
     const statusSel = el("select", inputCls);
     ["To do", "Done"].forEach((s) => { const o = el("option", null, s); if (s === t.status) o.selected = true; statusSel.appendChild(o); });
@@ -362,11 +407,10 @@ const filterPriority = document.getElementById("filter-priority");
 const filterEnergy = document.getElementById("filter-energy");
 const filterContext = document.getElementById("filter-context");
 const quickTitle = document.getElementById("quick-title");
-const quickProject = document.getElementById("quick-project");
-const quickType = document.getElementById("quick-type");
-const projectList = document.getElementById("project-list");
-const typeList = document.getElementById("type-list");
-const contextList = document.getElementById("context-list");
+const quickProjectContainer = document.getElementById("quick-project");
+const quickTypeContainer = document.getElementById("quick-type");
+let quickProjectValue = "";
+let quickTypeValue = "";
 const addError = document.getElementById("add-error");
 
 searchInput.addEventListener("input", (e) => { state.search = e.target.value; render(); });
@@ -385,12 +429,8 @@ function renderChrome() {
     btn.className = "view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border " +
       (active ? "bg-gray-900 text-white border-gray-900" : "border-gray-200 text-gray-600 hover:bg-gray-50");
   });
-  projectList.innerHTML = "";
-  uniqueValues("project").forEach((p) => { const o = document.createElement("option"); o.value = p; projectList.appendChild(o); });
-  typeList.innerHTML = "";
-  uniqueValues("type").forEach((t) => { const o = document.createElement("option"); o.value = t; typeList.appendChild(o); });
-  contextList.innerHTML = "";
-  uniqueValues("context").forEach((c) => { const o = document.createElement("option"); o.value = c; contextList.appendChild(o); });
+  mountCombo(quickProjectContainer, quickProjectValue, uniqueValues("project"), (v) => { quickProjectValue = v; renderChrome(); }, "Project *");
+  mountCombo(quickTypeContainer, quickTypeValue, uniqueValues("type"), (v) => { quickTypeValue = v; renderChrome(); }, "Type *");
   const currentContext = filterContext.value;
   filterContext.innerHTML = '<option value="All">Any context</option>';
   uniqueValues("context").forEach((c) => { const o = document.createElement("option"); o.value = c; o.textContent = c; filterContext.appendChild(o); });
@@ -417,25 +457,30 @@ const mPriority = document.getElementById("m-priority");
 const mEnergy = document.getElementById("m-energy");
 const mDeadline = document.getElementById("m-deadline");
 const mEstimate = document.getElementById("m-estimate");
-const mContext = document.getElementById("m-context");
 const mRecurrence = document.getElementById("m-recurrence");
 const mNotes = document.getElementById("m-notes");
-const mProjectInput = document.getElementById("m-project");
-const mTypeInput = document.getElementById("m-type");
+const mProjectContainer = document.getElementById("m-project");
+const mTypeContainer = document.getElementById("m-type");
+const mContextContainer = document.getElementById("m-context");
 
-mProjectInput.addEventListener("change", (e) => { state.draft.project = e.target.value; updateCreateBtnState(); });
-mTypeInput.addEventListener("change", (e) => { state.draft.type = e.target.value; updateCreateBtnState(); });
+function renderModalCombos() {
+  mountCombo(mProjectContainer, state.draft.project, uniqueValues("project"), (v) => { state.draft.project = v; renderModalCombos(); updateCreateBtnState(); }, "Project");
+  mountCombo(mTypeContainer, state.draft.type, uniqueValues("type"), (v) => { state.draft.type = v; renderModalCombos(); updateCreateBtnState(); }, "Type");
+  mountCombo(mContextContainer, state.draft.context, uniqueValues("context"), (v) => { state.draft.context = v; renderModalCombos(); }, "Context");
+}
 
 function openAddModal() {
   const title = quickTitle.value.trim();
-  const project = quickProject.value.trim();
-  const type = quickType.value.trim();
+  const project = quickProjectValue.trim();
+  const type = quickTypeValue.trim();
+  const quickTitleControl = quickTitle;
+  const quickProjectControl = quickProjectContainer.querySelector("select, input");
+  const quickTypeControl = quickTypeContainer.querySelector("select, input");
   if (!title || !project || !type) {
     addError.classList.remove("hidden");
-    [quickTitle, quickProject, quickType].forEach((inp) => {
-      if (!inp.value.trim()) inp.classList.add("border-rose-300");
-      else inp.classList.remove("border-rose-300");
-    });
+    if (!title) quickTitleControl.classList.add("border-rose-300"); else quickTitleControl.classList.remove("border-rose-300");
+    if (quickProjectControl) { if (!project) quickProjectControl.classList.add("border-rose-300"); else quickProjectControl.classList.remove("border-rose-300"); }
+    if (quickTypeControl) { if (!type) quickTypeControl.classList.add("border-rose-300"); else quickTypeControl.classList.remove("border-rose-300"); }
     return;
   }
   addError.classList.add("hidden");
@@ -444,16 +489,14 @@ function openAddModal() {
     deadline: "", estimate: "", context: "", recurrence: "None", notes: ""
   };
   mTitle.value = title;
-  mProjectInput.value = project;
-  mTypeInput.value = type;
   mPriority.value = "Medium";
   mEnergy.value = "Medium";
   mDeadline.value = "";
   mEstimate.value = "";
-  mContext.value = "";
   mRecurrence.value = "None";
   mNotes.value = "";
 
+  renderModalCombos();
   updateCreateBtnState();
   addModal.classList.remove("hidden");
 }
@@ -469,9 +512,7 @@ function closeAddModal() {
 }
 
 openModalBtn.addEventListener("click", openAddModal);
-[quickTitle, quickProject, quickType].forEach((inp) => {
-  inp.addEventListener("keydown", (e) => { if (e.key === "Enter") openAddModal(); });
-});
+quickTitle.addEventListener("keydown", (e) => { if (e.key === "Enter") openAddModal(); });
 closeModalBtn.addEventListener("click", closeAddModal);
 cancelModalBtn.addEventListener("click", closeAddModal);
 mTitle.addEventListener("input", (e) => { state.draft.title = e.target.value; updateCreateBtnState(); });
@@ -479,7 +520,6 @@ mPriority.addEventListener("change", (e) => { state.draft.priority = e.target.va
 mEnergy.addEventListener("change", (e) => { state.draft.energy = e.target.value; });
 mDeadline.addEventListener("change", (e) => { state.draft.deadline = e.target.value; });
 mEstimate.addEventListener("change", (e) => { state.draft.estimate = e.target.value; });
-mContext.addEventListener("change", (e) => { state.draft.context = e.target.value; });
 mRecurrence.addEventListener("change", (e) => { state.draft.recurrence = e.target.value; });
 mNotes.addEventListener("change", (e) => { state.draft.notes = e.target.value; });
 
@@ -491,8 +531,10 @@ createTaskBtn.addEventListener("click", async () => {
     priority: d.priority, status: "To do", deadline: d.deadline, estimate: d.estimate,
     energy: d.energy, context: d.context, recurrence: d.recurrence
   });
-  quickTitle.value = ""; quickProject.value = ""; quickType.value = "";
-  [quickTitle, quickProject, quickType].forEach((inp) => inp.classList.remove("border-rose-300"));
+  quickTitle.value = "";
+  quickProjectValue = "";
+  quickTypeValue = "";
+  renderChrome();
   closeAddModal();
 });
 
