@@ -171,9 +171,11 @@
         <button id="close-import-btn" class="text-gray-400 hover:text-gray-600">✕</button>
       </div>
       <p class="text-xs text-gray-500 mb-3">
-        Paste a list of task names — one per line, copied from Google Tasks,
-        a spreadsheet column, or a Notion list. Each line becomes its own
-        task, all sharing the project/type/priority you set below.
+        Paste a list of tasks — one per line. If you copy multiple columns
+        straight from a spreadsheet (Title, then Project, then Type, then
+        Context), each row will use its own values. Plain lines with just a
+        title (e.g. copied from Google Tasks or Notion) fall back to the
+        project/type/context you set below.
       </p>
 
       <label class="text-xs font-medium text-gray-500">Tasks (one per line)</label>
@@ -182,11 +184,11 @@
 
       <div class="grid grid-cols-2 gap-3 mt-3">
         <div>
-          <label class="text-xs font-medium text-gray-500">Project</label>
+          <label class="text-xs font-medium text-gray-500">Project (default)</label>
           <div id="import-project" class="mt-1"></div>
         </div>
         <div>
-          <label class="text-xs font-medium text-gray-500">Type</label>
+          <label class="text-xs font-medium text-gray-500">Type (default)</label>
           <div id="import-type" class="mt-1"></div>
         </div>
       </div>
@@ -199,7 +201,7 @@
           </select>
         </div>
         <div>
-          <label class="text-xs font-medium text-gray-500">Context</label>
+          <label class="text-xs font-medium text-gray-500">Context (default)</label>
           <div id="import-context" class="mt-1"></div>
         </div>
       </div>

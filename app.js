@@ -558,19 +558,27 @@ const importContextContainer = document.getElementById("import-context");
 
 let importDraft = { project: "", type: "", context: "" };
 
-function importLines() {
-  return importTextarea.value.split("\n").map((l) => l.trim()).filter(Boolean);
+function parseImportLines() {
+  return importTextarea.value
+    .split("\n")
+    .map((line) => line.split("\t").map((c) => c.trim()))
+    .filter((cols) => cols[0])
+    .map((cols) => ({
+      title: cols[0],
+      project: cols[1] || "",
+      type: cols[2] || "",
+      context: cols[3] || ""
+    }));
 }
 
 function renderImportCombos() {
-  mountCombo(importProjectContainer, importDraft.project, uniqueValues("project"), (v) => { importDraft.project = v; renderImportCombos(); updateImportBtnState(); }, "Project");
-  mountCombo(importTypeContainer, importDraft.type, uniqueValues("type"), (v) => { importDraft.type = v; renderImportCombos(); updateImportBtnState(); }, "Type");
+  mountCombo(importProjectContainer, importDraft.project, uniqueValues("project"), (v) => { importDraft.project = v; renderImportCombos(); }, "Project");
+  mountCombo(importTypeContainer, importDraft.type, uniqueValues("type"), (v) => { importDraft.type = v; renderImportCombos(); }, "Type");
   mountCombo(importContextContainer, importDraft.context, uniqueValues("context"), (v) => { importDraft.context = v; renderImportCombos(); }, "Context");
 }
 
 function updateImportBtnState() {
-  const ok = importLines().length > 0 && importDraft.project.trim() && importDraft.type.trim();
-  doImportBtn.disabled = !ok;
+  doImportBtn.disabled = parseImportLines().length === 0;
 }
 
 function openImportModal() {
@@ -592,21 +600,29 @@ closeImportBtn.addEventListener("click", closeImportModal);
 cancelImportBtn.addEventListener("click", closeImportModal);
 
 importTextarea.addEventListener("input", () => {
-  const n = importLines().length;
+  const n = parseImportLines().length;
   importCount.textContent = `${n} task${n === 1 ? "" : "s"} will be created`;
   updateImportBtnState();
 });
 
 doImportBtn.addEventListener("click", async () => {
   if (doImportBtn.disabled) return;
-  const lines = importLines();
+  const rows = parseImportLines();
   doImportBtn.disabled = true;
   doImportBtn.textContent = "Importing…";
   try {
-    await Promise.all(lines.map((title) => createTask({
-      title, notes: "", project: importDraft.project.trim(), type: importDraft.type.trim(),
-      priority: importPriority.value, status: "To do", deadline: "", estimate: "",
-      energy: "Medium", context: importDraft.context, recurrence: "None"
+    await Promise.all(rows.map((row) => createTask({
+      title: row.title,
+      notes: "",
+      project: row.project || importDraft.project.trim(),
+      type: row.type || importDraft.type.trim(),
+      priority: importPriority.value,
+      status: "To do",
+      deadline: "",
+      estimate: "",
+      energy: "Medium",
+      context: row.context || importDraft.context,
+      recurrence: "None"
     })));
   } catch (err) {
     console.error("Import error:", err);
