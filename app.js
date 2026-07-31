@@ -36,10 +36,16 @@ const loginScreen = document.getElementById("login-screen");
 const appEl = document.getElementById("app");
 const loginError = document.getElementById("login-error");
 
+const ALLOWED_EMAIL = "emmaleesharp@gmail.com";
+
 document.getElementById("google-signin").addEventListener("click", async () => {
   loginError.textContent = "";
   try {
-    await signInWithPopup(auth, new GoogleAuthProvider());
+    const result = await signInWithPopup(auth, new GoogleAuthProvider());
+    if (result.user.email !== ALLOWED_EMAIL) {
+      await signOut(auth);
+      loginError.textContent = "This app is private — that Google account isn't allowed to sign in.";
+    }
   } catch (err) {
     loginError.textContent = "Sign-in failed. Please try again.";
     console.error(err);
@@ -49,6 +55,10 @@ document.getElementById("google-signin").addEventListener("click", async () => {
 document.getElementById("signout").addEventListener("click", () => signOut(auth));
 
 onAuthStateChanged(auth, (user) => {
+  if (user && user.email !== ALLOWED_EMAIL) {
+    signOut(auth);
+    return;
+  }
   currentUser = user;
   if (user) {
     loginScreen.classList.add("hidden");
