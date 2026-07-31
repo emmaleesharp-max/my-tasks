@@ -1,4 +1,4 @@
-# Ledger — a personal task tracker
+# Personal Task Tracker
 
 A task tracker built around how you actually think about work: every task
 has a **project** (what it's for) and a **type** (what kind of work it is —
