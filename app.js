@@ -17,6 +17,7 @@ let unsubscribeTasks = null;
 const PRIORITIES = ["Low", "Medium", "High"];
 const ENERGIES = ["Low", "Medium", "High"];
 const RECURRENCES = ["None", "Daily", "Weekly", "Monthly"];
+const ESTIMATES = ["5 minutes", "15 minutes", "30 minutes", "60 minutes", "Over an hour"];
 const VIEWS = ["list", "board", "project", "type"];
 
 const state = {
@@ -104,13 +105,6 @@ function fmtDate(str) {
   const d = new Date(str + "T00:00:00");
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
-function fmtEstimate(mins) {
-  if (!mins) return "";
-  const n = Number(mins);
-  if (n < 60) return `${n}m`;
-  const h = Math.floor(n / 60), m = n % 60;
-  return m ? `${h}h ${m}m` : `${h}h`;
-}
 function priorityDotClass(p) {
   return p === "High" ? "bg-rose-500" : p === "Medium" ? "bg-amber-500" : "bg-gray-300";
 }
@@ -167,26 +161,13 @@ function el(tag, cls, text) {
   return e;
 }
 
-function buildTagPicker(value, options, onChange, placeholder) {
-  const wrap = el("div", "flex flex-col gap-1.5");
-  const input = el("input", "w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200");
+function comboInput(value, listId, placeholder, onChange) {
+  const input = el("input", inputCls);
   input.value = value || "";
   input.placeholder = placeholder || "";
-  input.addEventListener("input", (e) => onChange(e.target.value));
-  wrap.appendChild(input);
-  if (options.length) {
-    const chipRow = el("div", "flex flex-wrap gap-1");
-    options.forEach((o) => {
-      const chip = el("button", null, o);
-      chip.type = "button";
-      chip.className = "text-[11px] px-2 py-0.5 rounded-full border transition-colors " +
-        (value === o ? "bg-indigo-600 text-white border-indigo-600" : "border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-600");
-      chip.addEventListener("click", () => { input.value = o; onChange(o); });
-      chipRow.appendChild(chip);
-    });
-    wrap.appendChild(chipRow);
-  }
-  return wrap;
+  input.setAttribute("list", listId);
+  input.addEventListener("change", (e) => onChange(e.target.value));
+  return input;
 }
 
 function field(label, node) {
@@ -216,7 +197,7 @@ function buildRow(t) {
   if (t.project) meta.appendChild(el("span", null, "📁 " + t.project));
   if (t.type) meta.appendChild(el("span", "px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600", t.type));
   if (t.context) meta.appendChild(el("span", null, "📍 " + t.context));
-  if (t.estimate) meta.appendChild(el("span", null, "⏱ " + fmtEstimate(t.estimate)));
+  if (t.estimate) meta.appendChild(el("span", null, "⏱ " + t.estimate));
   if (t.recurrence && t.recurrence !== "None") meta.appendChild(el("span", null, "↻ " + t.recurrence));
   body.appendChild(title);
   body.appendChild(meta);
@@ -237,13 +218,10 @@ function buildRow(t) {
     const panel = el("div", "px-3.5 pb-4 pt-3 border-t border-gray-100 bg-gray-50/60");
     const grid = el("div", "grid grid-cols-2 sm:grid-cols-4 gap-3");
 
-    grid.appendChild(field("Project", buildTagPicker(t.project, uniqueValues("project"), (v) => patchTask(t.id, { project: v }), "e.g. Q3 launch")));
-    grid.appendChild(field("Type", buildTagPicker(t.type, uniqueValues("type"), (v) => patchTask(t.id, { type: v }), "e.g. Email follow-up")));
+    grid.appendChild(field("Project", comboInput(t.project, "project-list", "e.g. Q3 launch", (v) => patchTask(t.id, { project: v }))));
+    grid.appendChild(field("Type", comboInput(t.type, "type-list", "e.g. Email follow-up", (v) => patchTask(t.id, { type: v }))));
 
-    const contextInput = el("input", inputCls);
-    contextInput.value = t.context || ""; contextInput.placeholder = "e.g. Desk";
-    contextInput.setAttribute("list", "context-list");
-    contextInput.addEventListener("change", (e) => patchTask(t.id, { context: e.target.value }));
+    const contextInput = comboInput(t.context, "context-list", "e.g. Desk", (v) => patchTask(t.id, { context: v }));
     grid.appendChild(field("Context", contextInput));
 
     const statusSel = el("select", inputCls);
@@ -266,10 +244,15 @@ function buildRow(t) {
     deadlineInput.addEventListener("change", (e) => patchTask(t.id, { deadline: e.target.value }));
     grid.appendChild(field("Deadline", deadlineInput));
 
-    const estimateInput = el("input", inputCls);
-    estimateInput.type = "number"; estimateInput.min = "0"; estimateInput.value = t.estimate || "";
-    estimateInput.addEventListener("change", (e) => patchTask(t.id, { estimate: e.target.value }));
-    grid.appendChild(field("Estimate (min)", estimateInput));
+    const estimateSel = el("select", inputCls);
+    ["", ...ESTIMATES].forEach((opt) => {
+      const o = el("option", null, opt || "No estimate");
+      o.value = opt;
+      if (opt === (t.estimate || "")) o.selected = true;
+      estimateSel.appendChild(o);
+    });
+    estimateSel.addEventListener("change", (e) => patchTask(t.id, { estimate: e.target.value }));
+    grid.appendChild(field("Estimate", estimateSel));
 
     const recurSel = el("select", inputCls);
     RECURRENCES.forEach((r) => { const o = el("option", null, r); if (r === t.recurrence) o.selected = true; recurSel.appendChild(o); });
@@ -277,6 +260,15 @@ function buildRow(t) {
     grid.appendChild(field("Repeats", recurSel));
 
     panel.appendChild(grid);
+
+    const notesWrap = el("div", "mt-3");
+    const notesArea = el("textarea", inputCls + " min-h-[70px]");
+    notesArea.value = t.notes || "";
+    notesArea.placeholder = "Any extra notes…";
+    notesArea.addEventListener("change", (e) => patchTask(t.id, { notes: e.target.value }));
+    notesWrap.appendChild(el("label", "text-xs font-medium text-gray-500 block mb-1", "Details"));
+    notesWrap.appendChild(notesArea);
+    panel.appendChild(notesWrap);
 
     const delBtn = el("button", "mt-4 text-xs font-medium text-rose-500 hover:text-rose-700", "Delete task");
     delBtn.addEventListener("click", () => { if (confirm("Delete this task?")) removeTask(t.id); });
@@ -372,8 +364,8 @@ const filterContext = document.getElementById("filter-context");
 const quickTitle = document.getElementById("quick-title");
 const quickProject = document.getElementById("quick-project");
 const quickType = document.getElementById("quick-type");
-const quickTypeChips = document.getElementById("quick-type-chips");
 const projectList = document.getElementById("project-list");
+const typeList = document.getElementById("type-list");
 const contextList = document.getElementById("context-list");
 const addError = document.getElementById("add-error");
 
@@ -387,19 +379,6 @@ document.querySelectorAll(".view-btn").forEach((btn) => {
   btn.addEventListener("click", () => { state.view = btn.dataset.view; render(); });
 });
 
-quickType.addEventListener("input", () => renderQuickTypeChips());
-function renderQuickTypeChips() {
-  quickTypeChips.innerHTML = "";
-  uniqueValues("type").forEach((o) => {
-    const chip = el("button", null, o);
-    chip.type = "button";
-    chip.className = "text-[11px] px-2 py-0.5 rounded-full border transition-colors " +
-      (quickType.value === o ? "bg-indigo-600 text-white border-indigo-600" : "border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-600");
-    chip.addEventListener("click", () => { quickType.value = o; renderQuickTypeChips(); });
-    quickTypeChips.appendChild(chip);
-  });
-}
-
 function renderChrome() {
   document.querySelectorAll(".view-btn").forEach((btn) => {
     const active = btn.dataset.view === state.view;
@@ -408,13 +387,14 @@ function renderChrome() {
   });
   projectList.innerHTML = "";
   uniqueValues("project").forEach((p) => { const o = document.createElement("option"); o.value = p; projectList.appendChild(o); });
+  typeList.innerHTML = "";
+  uniqueValues("type").forEach((t) => { const o = document.createElement("option"); o.value = t; typeList.appendChild(o); });
   contextList.innerHTML = "";
   uniqueValues("context").forEach((c) => { const o = document.createElement("option"); o.value = c; contextList.appendChild(o); });
   const currentContext = filterContext.value;
   filterContext.innerHTML = '<option value="All">Any context</option>';
   uniqueValues("context").forEach((c) => { const o = document.createElement("option"); o.value = c; o.textContent = c; filterContext.appendChild(o); });
   filterContext.value = currentContext || "All";
-  renderQuickTypeChips();
 }
 
 function render() {
@@ -433,41 +413,18 @@ const closeModalBtn = document.getElementById("close-modal-btn");
 const cancelModalBtn = document.getElementById("cancel-modal-btn");
 const createTaskBtn = document.getElementById("create-task-btn");
 const mTitle = document.getElementById("m-title");
-const mProjectChips = document.getElementById("m-project-chips");
-const mTypeChips = document.getElementById("m-type-chips");
 const mPriority = document.getElementById("m-priority");
 const mEnergy = document.getElementById("m-energy");
 const mDeadline = document.getElementById("m-deadline");
 const mEstimate = document.getElementById("m-estimate");
 const mContext = document.getElementById("m-context");
 const mRecurrence = document.getElementById("m-recurrence");
-
+const mNotes = document.getElementById("m-notes");
 const mProjectInput = document.getElementById("m-project");
 const mTypeInput = document.getElementById("m-type");
 
-function renderModalChips() {
-  mProjectChips.innerHTML = "";
-  uniqueValues("project").forEach((o) => {
-    const chip = el("button", null, o);
-    chip.type = "button";
-    chip.className = "text-[11px] px-2 py-0.5 rounded-full border transition-colors " +
-      (mProjectInput.value === o ? "bg-indigo-600 text-white border-indigo-600" : "border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-600");
-    chip.addEventListener("click", () => { mProjectInput.value = o; state.draft.project = o; renderModalChips(); updateCreateBtnState(); });
-    mProjectChips.appendChild(chip);
-  });
-  mTypeChips.innerHTML = "";
-  uniqueValues("type").forEach((o) => {
-    const chip = el("button", null, o);
-    chip.type = "button";
-    chip.className = "text-[11px] px-2 py-0.5 rounded-full border transition-colors " +
-      (mTypeInput.value === o ? "bg-indigo-600 text-white border-indigo-600" : "border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-600");
-    chip.addEventListener("click", () => { mTypeInput.value = o; state.draft.type = o; renderModalChips(); updateCreateBtnState(); });
-    mTypeChips.appendChild(chip);
-  });
-}
-
-mProjectInput.addEventListener("input", (e) => { state.draft.project = e.target.value; renderModalChips(); updateCreateBtnState(); });
-mTypeInput.addEventListener("input", (e) => { state.draft.type = e.target.value; renderModalChips(); updateCreateBtnState(); });
+mProjectInput.addEventListener("change", (e) => { state.draft.project = e.target.value; updateCreateBtnState(); });
+mTypeInput.addEventListener("change", (e) => { state.draft.type = e.target.value; updateCreateBtnState(); });
 
 function openAddModal() {
   const title = quickTitle.value.trim();
@@ -484,7 +441,7 @@ function openAddModal() {
   addError.classList.add("hidden");
   state.draft = {
     title, project, type, priority: "Medium", energy: "Medium",
-    deadline: "", estimate: "", context: "", recurrence: "None"
+    deadline: "", estimate: "", context: "", recurrence: "None", notes: ""
   };
   mTitle.value = title;
   mProjectInput.value = project;
@@ -495,8 +452,8 @@ function openAddModal() {
   mEstimate.value = "";
   mContext.value = "";
   mRecurrence.value = "None";
+  mNotes.value = "";
 
-  renderModalChips();
   updateCreateBtnState();
   addModal.classList.remove("hidden");
 }
@@ -524,12 +481,13 @@ mDeadline.addEventListener("change", (e) => { state.draft.deadline = e.target.va
 mEstimate.addEventListener("change", (e) => { state.draft.estimate = e.target.value; });
 mContext.addEventListener("change", (e) => { state.draft.context = e.target.value; });
 mRecurrence.addEventListener("change", (e) => { state.draft.recurrence = e.target.value; });
+mNotes.addEventListener("change", (e) => { state.draft.notes = e.target.value; });
 
 createTaskBtn.addEventListener("click", async () => {
   if (createTaskBtn.disabled || !state.draft) return;
   const d = state.draft;
   await createTask({
-    title: d.title.trim(), notes: "", project: d.project.trim(), type: d.type.trim(),
+    title: d.title.trim(), notes: d.notes || "", project: d.project.trim(), type: d.type.trim(),
     priority: d.priority, status: "To do", deadline: d.deadline, estimate: d.estimate,
     energy: d.energy, context: d.context, recurrence: d.recurrence
   });
