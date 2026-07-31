@@ -132,7 +132,7 @@ async function toggleDone(t) {
       title: t.title, notes: t.notes || "", project: t.project || "",
       type: t.type || "", priority: t.priority || "Medium", status: "To do",
       deadline: next, estimate: t.estimate || "", energy: t.energy || "Medium",
-      context: t.context || "", recurrence: t.recurrence
+      context: t.context || "", recurrence: t.recurrence, starred: false
     });
   }
 }
@@ -242,6 +242,11 @@ function buildRow(t) {
   body.appendChild(meta);
 
   const right = el("div", "flex items-center gap-2 shrink-0");
+  const starBtn = el("button", "text-base leading-none " + (t.starred ? "text-amber-400" : "text-gray-300 hover:text-amber-300"));
+  starBtn.innerHTML = t.starred ? "&#9733;" : "&#9734;";
+  starBtn.title = t.starred ? "Unstar" : "Star";
+  starBtn.addEventListener("click", (e) => { e.stopPropagation(); patchTask(t.id, { starred: !t.starred }); });
+  right.appendChild(starBtn);
   right.appendChild(el("span", "w-2 h-2 rounded-full " + priorityDotClass(t.priority)));
   if (t.deadline) {
     right.appendChild(el("span", "text-xs font-medium " + (isOverdue(t) ? "text-rose-600" : "text-gray-500"), fmtDate(t.deadline)));
@@ -529,7 +534,7 @@ createTaskBtn.addEventListener("click", async () => {
   await createTask({
     title: d.title.trim(), notes: d.notes || "", project: d.project.trim(), type: d.type.trim(),
     priority: d.priority, status: "To do", deadline: d.deadline, estimate: d.estimate,
-    energy: d.energy, context: d.context, recurrence: d.recurrence
+    energy: d.energy, context: d.context, recurrence: d.recurrence, starred: false
   });
   quickTitle.value = "";
   quickProjectValue = "";
@@ -622,7 +627,8 @@ doImportBtn.addEventListener("click", async () => {
       estimate: "",
       energy: "Medium",
       context: row.context || importDraft.context,
-      recurrence: "None"
+      recurrence: "None",
+      starred: false
     })));
   } catch (err) {
     console.error("Import error:", err);
