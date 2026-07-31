@@ -260,6 +260,18 @@ function buildRow(t) {
 
   if (isOpen) {
     const panel = el("div", "px-3.5 pb-4 pt-3 border-t border-gray-100 bg-gray-50/60");
+
+    const titleInput = el("input", inputCls);
+    titleInput.value = t.title || "";
+    titleInput.addEventListener("change", (e) => {
+      const v = e.target.value.trim();
+      if (v) patchTask(t.id, { title: v });
+      else e.target.value = t.title || "";
+    });
+    const titleField = field("Title", titleInput);
+    titleField.className += " mb-3";
+    panel.appendChild(titleField);
+
     const grid = el("div", "grid grid-cols-2 sm:grid-cols-4 gap-3");
 
     const projectField = field("Project", el("div"));
