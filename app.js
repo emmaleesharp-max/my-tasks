@@ -18,7 +18,7 @@ const PRIORITIES = ["Low", "Medium", "High"];
 const ENERGIES = ["Low", "Medium", "High"];
 const RECURRENCES = ["None", "Daily", "Weekly", "Monthly"];
 const ESTIMATES = ["5 minutes", "15 minutes", "30 minutes", "60 minutes", "Over an hour"];
-const VIEWS = ["list", "board", "project", "type"];
+const VIEWS = ["list", "board", "project", "type", "context"];
 
 const state = {
   view: "list",
@@ -461,6 +461,7 @@ function render() {
   else if (state.view === "board") renderBoard(contentEl);
   else if (state.view === "project") renderGrouped(contentEl, "project");
   else if (state.view === "type") renderGrouped(contentEl, "type");
+  else if (state.view === "context") renderGrouped(contentEl, "context");
 }
 
 // ---------- Add modal ----------
