@@ -540,6 +540,80 @@ createTaskBtn.addEventListener("click", async () => {
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !addModal.classList.contains("hidden")) closeAddModal();
+  if (e.key === "Escape" && !importModal.classList.contains("hidden")) closeImportModal();
+});
+
+// ---------- Bulk import ----------
+const importModal = document.getElementById("import-modal");
+const openImportBtn = document.getElementById("open-import-btn");
+const closeImportBtn = document.getElementById("close-import-btn");
+const cancelImportBtn = document.getElementById("cancel-import-btn");
+const doImportBtn = document.getElementById("do-import-btn");
+const importTextarea = document.getElementById("import-textarea");
+const importCount = document.getElementById("import-count");
+const importPriority = document.getElementById("import-priority");
+const importProjectContainer = document.getElementById("import-project");
+const importTypeContainer = document.getElementById("import-type");
+const importContextContainer = document.getElementById("import-context");
+
+let importDraft = { project: "", type: "", context: "" };
+
+function importLines() {
+  return importTextarea.value.split("\n").map((l) => l.trim()).filter(Boolean);
+}
+
+function renderImportCombos() {
+  mountCombo(importProjectContainer, importDraft.project, uniqueValues("project"), (v) => { importDraft.project = v; renderImportCombos(); updateImportBtnState(); }, "Project");
+  mountCombo(importTypeContainer, importDraft.type, uniqueValues("type"), (v) => { importDraft.type = v; renderImportCombos(); updateImportBtnState(); }, "Type");
+  mountCombo(importContextContainer, importDraft.context, uniqueValues("context"), (v) => { importDraft.context = v; renderImportCombos(); }, "Context");
+}
+
+function updateImportBtnState() {
+  const ok = importLines().length > 0 && importDraft.project.trim() && importDraft.type.trim();
+  doImportBtn.disabled = !ok;
+}
+
+function openImportModal() {
+  importDraft = { project: "", type: "", context: "" };
+  importTextarea.value = "";
+  importPriority.value = "Medium";
+  importCount.textContent = "0 tasks will be created";
+  renderImportCombos();
+  updateImportBtnState();
+  importModal.classList.remove("hidden");
+}
+
+function closeImportModal() {
+  importModal.classList.add("hidden");
+}
+
+openImportBtn.addEventListener("click", openImportModal);
+closeImportBtn.addEventListener("click", closeImportModal);
+cancelImportBtn.addEventListener("click", closeImportModal);
+
+importTextarea.addEventListener("input", () => {
+  const n = importLines().length;
+  importCount.textContent = `${n} task${n === 1 ? "" : "s"} will be created`;
+  updateImportBtnState();
+});
+
+doImportBtn.addEventListener("click", async () => {
+  if (doImportBtn.disabled) return;
+  const lines = importLines();
+  doImportBtn.disabled = true;
+  doImportBtn.textContent = "Importing…";
+  try {
+    await Promise.all(lines.map((title) => createTask({
+      title, notes: "", project: importDraft.project.trim(), type: importDraft.type.trim(),
+      priority: importPriority.value, status: "To do", deadline: "", estimate: "",
+      energy: "Medium", context: importDraft.context, recurrence: "None"
+    })));
+  } catch (err) {
+    console.error("Import error:", err);
+    alert("Something went wrong importing some tasks — check the console for details.");
+  }
+  doImportBtn.textContent = "Import tasks";
+  closeImportModal();
 });
 
 render();

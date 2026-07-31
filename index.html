@@ -41,6 +41,7 @@
             <div id="quick-project" class="w-full sm:w-36"></div>
             <div id="quick-type" class="w-full sm:w-44"></div>
             <button id="open-modal-btn" class="text-sm font-medium bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shrink-0">Add</button>
+            <button id="open-import-btn" class="text-sm font-medium border border-gray-200 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 shrink-0">Import</button>
           </div>
           <p id="add-error" class="text-xs text-rose-500 mt-1.5 hidden">Title, project, and type are all required.</p>
 
@@ -158,6 +159,54 @@
       <div class="flex justify-end gap-2 mt-5">
         <button id="cancel-modal-btn" class="text-sm px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50">Cancel</button>
         <button id="create-task-btn" class="text-sm font-medium bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed" disabled>Create task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk import modal -->
+  <div id="import-modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl border border-gray-200 w-full max-w-md p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-semibold text-gray-900">Import tasks</h2>
+        <button id="close-import-btn" class="text-gray-400 hover:text-gray-600">✕</button>
+      </div>
+      <p class="text-xs text-gray-500 mb-3">
+        Paste a list of task names — one per line, copied from Google Tasks,
+        a spreadsheet column, or a Notion list. Each line becomes its own
+        task, all sharing the project/type/priority you set below.
+      </p>
+
+      <label class="text-xs font-medium text-gray-500">Tasks (one per line)</label>
+      <textarea id="import-textarea" rows="6" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1" placeholder="Draft brief&#10;Book photographer&#10;Confirm venue&#10;…"></textarea>
+      <p id="import-count" class="text-xs text-gray-400 mt-1">0 tasks will be created</p>
+
+      <div class="grid grid-cols-2 gap-3 mt-3">
+        <div>
+          <label class="text-xs font-medium text-gray-500">Project</label>
+          <div id="import-project" class="mt-1"></div>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500">Type</label>
+          <div id="import-type" class="mt-1"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mt-3">
+        <div>
+          <label class="text-xs font-medium text-gray-500">Priority</label>
+          <select id="import-priority" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1">
+            <option>Low</option><option selected>Medium</option><option>High</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500">Context</label>
+          <div id="import-context" class="mt-1"></div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-5">
+        <button id="cancel-import-btn" class="text-sm px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50">Cancel</button>
+        <button id="do-import-btn" class="text-sm font-medium bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed" disabled>Import tasks</button>
       </div>
     </div>
   </div>
