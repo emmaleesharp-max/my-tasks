@@ -155,7 +155,7 @@ lasts — you'll need to click Connect again after either of those.
   required — Project is a dropdown of everything you've used before, and
   you can type a new one to create it on the fly; Type is a fixed list of
   five options so it can't drift into dozens of one-off categories) and
-  press **Add**. A popup opens with everything else — priority, energy,
+  press **Add**. A popup opens with everything else — energy,
   deadline, estimate, repeats, and a free-form details box — visible at
   once, no scrolling. "Create task" stays disabled until title/project/type
   are filled.
@@ -174,7 +174,6 @@ lasts — you'll need to click Connect again after either of those.
   the next occurrence, rolled forward by the chosen interval.
 - **Views**:
   - **List** — grouped by Overdue / Today / Upcoming / No date
-  - **Board** — To do / Done, side by side
   - **Project** — grouped by project
   - **Type** — grouped by type, for time-blocking similar work together
   - **Calendar** — one day at a time: your real Google Calendar events next
@@ -184,9 +183,9 @@ lasts — you'll need to click Connect again after either of those.
     (none are shown by default), and can change that anytime via the
     "Calendars" link. Each calendar's events are color-coded to match its
     color in Google Calendar.
-- **Filters**: search, priority, energy, project, and type, plus a "hide
-  done" toggle — all apply across every view, so you can also isolate a
-  single project while in List or Board view, not just the Project tab.
+- **Filters**: search, energy, project, and type, plus a "hide done" toggle
+  — all apply across every view, so you can also isolate a single project
+  while in List view, not just the Project tab.
 - **Cost**: Firebase's free "Spark" tier comfortably covers personal use —
   there's no billing setup required to get started.
 
@@ -197,7 +196,6 @@ lasts — you'll need to click Connect again after either of those.
 | Title | required, editable any time |
 | Project | required — dropdown of past entries, or type a new one to create it |
 | Type | required — fixed list: Email, Meeting, Finance, Errand, Admin |
-| Priority | Low / Medium / High |
 | Status | To do / Done |
 | Deadline | optional date |
 | Time | optional — if set, the task slots into the Calendar view's

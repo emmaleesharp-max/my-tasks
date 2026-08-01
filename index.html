@@ -59,7 +59,6 @@
 
           <div class="flex flex-wrap items-center gap-2 mt-3" id="view-tabs">
             <button data-view="list" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">List</button>
-            <button data-view="board" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">Board</button>
             <button data-view="project" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">Project</button>
             <button data-view="type" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">Type</button>
             <button data-view="calendar" class="view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border">Calendar</button>
@@ -71,14 +70,6 @@
           </div>
 
           <div class="flex flex-wrap items-center gap-2 mt-3">
-            <div class="flex items-center gap-1.5 border border-gray-200 rounded-lg px-2.5 py-1.5">
-              <span class="text-gray-400 text-xs">⌕</span>
-              <input id="search-input" class="text-xs outline-none w-32 placeholder:text-gray-400" placeholder="Search…" />
-            </div>
-            <select id="filter-priority" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600">
-              <option value="All">Any priority</option>
-              <option>Low</option><option>Medium</option><option>High</option>
-            </select>
             <select id="filter-energy" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600">
               <option value="All">Any energy</option>
               <option>Low</option><option>Medium</option><option>High</option>
@@ -94,6 +85,13 @@
               <option>Errand</option>
               <option>Admin</option>
             </select>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 mt-2">
+            <div class="flex items-center gap-1.5 border border-gray-200 rounded-lg px-2.5 py-1.5">
+              <span class="text-gray-400 text-xs">⌕</span>
+              <input id="search-input" class="text-xs outline-none w-full placeholder:text-gray-400" placeholder="Search…" />
+            </div>
           </div>
         </div>
 
@@ -135,12 +133,6 @@
         </div>
 
         <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="text-xs font-medium text-gray-500">Priority</label>
-            <select id="m-priority" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1">
-              <option>Low</option><option selected>Medium</option><option>High</option>
-            </select>
-          </div>
           <div>
             <label class="text-xs font-medium text-gray-500">Energy</label>
             <select id="m-energy" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1">
@@ -228,15 +220,6 @@
             <option>Finance</option>
             <option>Errand</option>
             <option>Admin</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-3 mt-3">
-        <div>
-          <label class="text-xs font-medium text-gray-500">Priority</label>
-          <select id="import-priority" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1">
-            <option>Low</option><option selected>Medium</option><option>High</option>
           </select>
         </div>
       </div>

@@ -20,18 +20,16 @@ let currentUser = null;
 let tasks = [];
 let unsubscribeTasks = null;
 
-const PRIORITIES = ["Low", "Medium", "High"];
 const ENERGIES = ["Low", "Medium", "High"];
 const RECURRENCES = ["None", "Daily", "Weekly", "Monthly"];
 const ESTIMATES = ["5 minutes", "15 minutes", "30 minutes", "60 minutes", "Over an hour"];
 const TYPES = ["Email", "Meeting", "Finance", "Errand", "Admin"];
-const VIEWS = ["list", "board", "project", "type", "calendar"];
+const VIEWS = ["list", "project", "type", "calendar"];
 
 const state = {
   view: "list",
   search: "",
   hideDone: localStorage.getItem("hideDone") === "true",
-  filterPriority: "All",
   filterEnergy: "All",
   filterType: "All",
   filterProject: "All",
@@ -120,9 +118,6 @@ function fmt12Hour(hhmm) {
   d.setHours(h, m, 0, 0);
   return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
-function priorityDotClass(p) {
-  return p === "High" ? "bg-rose-500" : p === "Medium" ? "bg-amber-500" : "bg-gray-300";
-}
 function nextDueDate(dateStr, recurrence) {
   if (!dateStr || recurrence === "None") return null;
   const d = new Date(dateStr + "T00:00:00");
@@ -145,7 +140,7 @@ async function toggleDone(t) {
   if (next) {
     await createTask({
       title: t.title, notes: t.notes || "", project: t.project || "",
-      type: t.type || "", priority: t.priority || "Medium", status: "To do",
+      type: t.type || "", status: "To do",
       deadline: next, deadlineTime: t.deadlineTime || "", estimate: t.estimate || "", energy: t.energy || "Medium",
       recurrence: t.recurrence, starred: false
     });
@@ -156,7 +151,6 @@ async function toggleDone(t) {
 function filteredTasks() {
   return tasks.filter((t) => {
     if (state.hideDone && t.status === "Done") return false;
-    if (state.filterPriority !== "All" && t.priority !== state.filterPriority) return false;
     if (state.filterEnergy !== "All" && t.energy !== state.filterEnergy) return false;
     if (state.filterType !== "All" && t.type !== state.filterType) return false;
     if (state.filterProject !== "All" && t.project !== state.filterProject) return false;
@@ -262,7 +256,6 @@ function buildRow(t) {
   starBtn.title = t.starred ? "Unstar" : "Star";
   starBtn.addEventListener("click", (e) => { e.stopPropagation(); patchTask(t.id, { starred: !t.starred }); });
   right.appendChild(starBtn);
-  right.appendChild(el("span", "w-2 h-2 rounded-full " + priorityDotClass(t.priority)));
   if (t.deadline) {
     const dateLabel = fmtDate(t.deadline) + (t.deadlineTime ? " · " + fmt12Hour(t.deadlineTime) : "");
     right.appendChild(el("span", "text-xs font-medium " + (isOverdue(t) ? "text-rose-600" : "text-gray-500"), dateLabel));
@@ -307,11 +300,6 @@ function buildRow(t) {
     ["To do", "Done"].forEach((s) => { const o = el("option", null, s); if (s === t.status) o.selected = true; statusSel.appendChild(o); });
     statusSel.addEventListener("change", (e) => patchTask(t.id, { status: e.target.value }));
     grid.appendChild(field("Status", statusSel));
-
-    const prioSel = el("select", inputCls);
-    PRIORITIES.forEach((p) => { const o = el("option", null, p); if (p === t.priority) o.selected = true; prioSel.appendChild(o); });
-    prioSel.addEventListener("change", (e) => patchTask(t.id, { priority: e.target.value }));
-    grid.appendChild(field("Priority", prioSel));
 
     const energySel = el("select", inputCls);
     ENERGIES.forEach((e_) => { const o = el("option", null, e_); if (e_ === t.energy) o.selected = true; energySel.appendChild(o); });
@@ -401,22 +389,6 @@ function renderList(container) {
     section.appendChild(rows);
     container.appendChild(section);
   }
-}
-
-function renderBoard(container) {
-  const items = filteredTasks();
-  const grid = el("div", "grid grid-cols-1 sm:grid-cols-2 gap-4");
-  ["To do", "Done"].forEach((status) => {
-    const list = items.filter((t) => t.status === status);
-    const col = el("div", "bg-gray-50 rounded-xl border border-gray-200 p-3");
-    col.appendChild(el("p", "text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3", `${status} · ${list.length}`));
-    const rows = el("div", "flex flex-col gap-2");
-    if (!list.length) rows.appendChild(el("p", "text-xs text-gray-400", "—"));
-    list.forEach((t) => rows.appendChild(buildRow(t)));
-    col.appendChild(rows);
-    grid.appendChild(col);
-  });
-  container.appendChild(grid);
 }
 
 function renderGrouped(container, fieldName) {
@@ -760,7 +732,6 @@ function renderCalendar(container) {
 const contentEl = document.getElementById("content");
 const searchInput = document.getElementById("search-input");
 const hideDoneInput = document.getElementById("hide-done");
-const filterPriority = document.getElementById("filter-priority");
 const filterEnergy = document.getElementById("filter-energy");
 const filterType = document.getElementById("filter-type");
 const filterProject = document.getElementById("filter-project");
@@ -776,7 +747,6 @@ hideDoneInput.addEventListener("change", (e) => {
   localStorage.setItem("hideDone", state.hideDone);
   render();
 });
-filterPriority.addEventListener("change", (e) => { state.filterPriority = e.target.value; render(); });
 filterEnergy.addEventListener("change", (e) => { state.filterEnergy = e.target.value; render(); });
 filterType.addEventListener("change", (e) => { state.filterType = e.target.value; render(); });
 filterProject.addEventListener("change", (e) => { state.filterProject = e.target.value; render(); });
@@ -803,7 +773,6 @@ function render() {
   renderChrome();
   contentEl.innerHTML = "";
   if (state.view === "list") renderList(contentEl);
-  else if (state.view === "board") renderBoard(contentEl);
   else if (state.view === "project") renderGrouped(contentEl, "project");
   else if (state.view === "type") renderGrouped(contentEl, "type");
   else if (state.view === "calendar") renderCalendar(contentEl);
@@ -816,7 +785,6 @@ const closeModalBtn = document.getElementById("close-modal-btn");
 const cancelModalBtn = document.getElementById("cancel-modal-btn");
 const createTaskBtn = document.getElementById("create-task-btn");
 const mTitle = document.getElementById("m-title");
-const mPriority = document.getElementById("m-priority");
 const mEnergy = document.getElementById("m-energy");
 const mDeadline = document.getElementById("m-deadline");
 const mDeadlineTime = document.getElementById("m-deadline-time");
@@ -845,12 +813,11 @@ function openAddModal() {
   }
   addError.classList.add("hidden");
   state.draft = {
-    title, project, type, priority: "Medium", energy: "Medium",
+    title, project, type, energy: "Medium",
     deadline: "", deadlineTime: "", estimate: "", recurrence: "None", notes: ""
   };
   mTitle.value = title;
   mType.value = type;
-  mPriority.value = "Medium";
   mEnergy.value = "Medium";
   mDeadline.value = "";
   mDeadlineTime.value = "";
@@ -879,7 +846,6 @@ closeModalBtn.addEventListener("click", closeAddModal);
 cancelModalBtn.addEventListener("click", closeAddModal);
 mTitle.addEventListener("input", (e) => { state.draft.title = e.target.value; updateCreateBtnState(); });
 mType.addEventListener("change", (e) => { state.draft.type = e.target.value; updateCreateBtnState(); });
-mPriority.addEventListener("change", (e) => { state.draft.priority = e.target.value; });
 mEnergy.addEventListener("change", (e) => { state.draft.energy = e.target.value; });
 mDeadline.addEventListener("change", (e) => { state.draft.deadline = e.target.value; });
 mDeadlineTime.addEventListener("change", (e) => { state.draft.deadlineTime = e.target.value; });
@@ -892,7 +858,7 @@ createTaskBtn.addEventListener("click", async () => {
   const d = state.draft;
   await createTask({
     title: d.title.trim(), notes: d.notes || "", project: d.project.trim(), type: d.type.trim(),
-    priority: d.priority, status: "To do", deadline: d.deadline, deadlineTime: d.deadlineTime, estimate: d.estimate,
+    status: "To do", deadline: d.deadline, deadlineTime: d.deadlineTime, estimate: d.estimate,
     energy: d.energy, recurrence: d.recurrence, starred: false
   });
   quickTitle.value = "";
@@ -915,7 +881,6 @@ const cancelImportBtn = document.getElementById("cancel-import-btn");
 const doImportBtn = document.getElementById("do-import-btn");
 const importTextarea = document.getElementById("import-textarea");
 const importCount = document.getElementById("import-count");
-const importPriority = document.getElementById("import-priority");
 const importProjectContainer = document.getElementById("import-project");
 const importType = document.getElementById("import-type");
 
@@ -944,7 +909,6 @@ function updateImportBtnState() {
 function openImportModal() {
   importDraft = { project: "" };
   importTextarea.value = "";
-  importPriority.value = "Medium";
   importType.value = "";
   importCount.textContent = "0 tasks will be created";
   renderImportCombos();
@@ -977,7 +941,6 @@ doImportBtn.addEventListener("click", async () => {
       notes: "",
       project: row.project || importDraft.project.trim(),
       type: row.type || importType.value,
-      priority: importPriority.value,
       status: "To do",
       deadline: "",
       deadlineTime: "",
