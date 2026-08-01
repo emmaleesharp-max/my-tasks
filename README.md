@@ -200,6 +200,9 @@ need a more involved setup.
 | Priority | Low / Medium / High |
 | Status | To do / Done |
 | Deadline | optional date |
+| Time | optional — if set, the task slots into the Calendar view's
+  schedule alongside your meetings, sorted by time; without one, it stays
+  in the plain "due this day" list |
 | Estimate | optional — 5 / 15 / 30 / 60 minutes, or Over an hour |
 | Energy | Low / Medium / High |
 | Details | optional free-form notes |

@@ -113,6 +113,13 @@ function fmtDate(str) {
   const d = new Date(str + "T00:00:00");
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
+function fmt12Hour(hhmm) {
+  if (!hhmm) return "";
+  const [h, m] = hhmm.split(":").map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
 function priorityDotClass(p) {
   return p === "High" ? "bg-rose-500" : p === "Medium" ? "bg-amber-500" : "bg-gray-300";
 }
@@ -139,7 +146,7 @@ async function toggleDone(t) {
     await createTask({
       title: t.title, notes: t.notes || "", project: t.project || "",
       type: t.type || "", priority: t.priority || "Medium", status: "To do",
-      deadline: next, estimate: t.estimate || "", energy: t.energy || "Medium",
+      deadline: next, deadlineTime: t.deadlineTime || "", estimate: t.estimate || "", energy: t.energy || "Medium",
       recurrence: t.recurrence, starred: false
     });
   }
@@ -257,7 +264,8 @@ function buildRow(t) {
   right.appendChild(starBtn);
   right.appendChild(el("span", "w-2 h-2 rounded-full " + priorityDotClass(t.priority)));
   if (t.deadline) {
-    right.appendChild(el("span", "text-xs font-medium " + (isOverdue(t) ? "text-rose-600" : "text-gray-500"), fmtDate(t.deadline)));
+    const dateLabel = fmtDate(t.deadline) + (t.deadlineTime ? " · " + fmt12Hour(t.deadlineTime) : "");
+    right.appendChild(el("span", "text-xs font-medium " + (isOverdue(t) ? "text-rose-600" : "text-gray-500"), dateLabel));
   }
   right.appendChild(el("span", "text-gray-400 text-xs", isOpen ? "▾" : "▸"));
 
@@ -314,6 +322,11 @@ function buildRow(t) {
     deadlineInput.type = "date"; deadlineInput.value = t.deadline || "";
     deadlineInput.addEventListener("change", (e) => patchTask(t.id, { deadline: e.target.value }));
     grid.appendChild(field("Deadline", deadlineInput));
+
+    const timeInput = el("input", inputCls);
+    timeInput.type = "time"; timeInput.value = t.deadlineTime || "";
+    timeInput.addEventListener("change", (e) => patchTask(t.id, { deadlineTime: e.target.value }));
+    grid.appendChild(field("Time (optional)", timeInput));
 
     const estimateSel = el("select", inputCls);
     ["", ...ESTIMATES].forEach((opt) => {
@@ -646,44 +659,79 @@ function renderCalendar(container) {
     container.appendChild(el("p", "text-sm text-gray-400 mb-6", "No calendars selected yet — click \"Calendars\" above to choose which ones to show."));
   } else if (calendarLoading) {
     container.appendChild(el("p", "text-sm text-gray-400 mb-6", "Loading your calendar…"));
-  } else {
+  }
+
+  const dueTasks = tasks.filter((t) => t.deadline === dayStr);
+  const timedTasks = dueTasks.filter((t) => t.deadlineTime);
+  const untimedTasks = dueTasks.filter((t) => !t.deadlineTime);
+
+  const eventsAvailable = calendarAccessToken && selectedCalendarIds.length > 0 && !showCalendarPicker && !calendarLoading && !calendarListLoading;
+  const scheduleItems = [];
+  if (eventsAvailable) {
+    calendarEvents.forEach((ev) => {
+      const key = ev.start && ev.start.dateTime ? ev.start.dateTime : "0000";
+      scheduleItems.push({ kind: "event", sortKey: key, data: ev });
+    });
+  }
+  timedTasks.forEach((t) => {
+    scheduleItems.push({ kind: "task", sortKey: `${dayStr}T${t.deadlineTime}:00`, data: t });
+  });
+  scheduleItems.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+  if (!showCalendarPicker) {
     const scheduleSection = el("div", "mb-6");
     scheduleSection.appendChild(el("p", "text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2", "Your schedule"));
-    if (calendarEvents.length === 0) {
-      scheduleSection.appendChild(el("p", "text-sm text-gray-400", "Nothing on your calendar this day."));
+    if (scheduleItems.length === 0) {
+      scheduleSection.appendChild(el("p", "text-sm text-gray-400", eventsAvailable ? "Nothing on your calendar this day." : "Nothing scheduled at a specific time this day."));
     } else {
       const list = el("div", "flex flex-col gap-2");
-      calendarEvents.forEach((ev) => {
-        const row = el("div", "flex items-start gap-3 px-3.5 py-2.5 border border-gray-200 rounded-xl bg-white");
-        const bar = el("span", "w-1 self-stretch rounded-full shrink-0");
-        bar.style.backgroundColor = ev._calColor || "#4f46e5";
-        row.appendChild(bar);
-        const body = el("div", "flex-1 min-w-0");
-        body.appendChild(el("p", "text-sm font-medium text-gray-900", ev.summary || "(No title)"));
-        let timeLabel = "All day";
-        if (ev.start && ev.start.dateTime) {
-          const s = new Date(ev.start.dateTime);
-          const e = ev.end && ev.end.dateTime ? new Date(ev.end.dateTime) : null;
-          timeLabel = fmtTime(s) + (e ? " – " + fmtTime(e) : "");
+      scheduleItems.forEach((item) => {
+        if (item.kind === "event") {
+          const ev = item.data;
+          const row = el("div", "flex items-start gap-3 px-3.5 py-2.5 border border-gray-200 rounded-xl bg-white");
+          const bar = el("span", "w-1 self-stretch rounded-full shrink-0");
+          bar.style.backgroundColor = ev._calColor || "#4f46e5";
+          row.appendChild(bar);
+          const body = el("div", "flex-1 min-w-0");
+          body.appendChild(el("p", "text-sm font-medium text-gray-900", ev.summary || "(No title)"));
+          let timeLabel = "All day";
+          if (ev.start && ev.start.dateTime) {
+            const s = new Date(ev.start.dateTime);
+            const e = ev.end && ev.end.dateTime ? new Date(ev.end.dateTime) : null;
+            timeLabel = fmtTime(s) + (e ? " – " + fmtTime(e) : "");
+          }
+          if (selectedCalendarIds.length > 1 && ev._calName) timeLabel += " · " + ev._calName;
+          body.appendChild(el("p", "text-xs text-gray-500 mt-0.5", timeLabel));
+          row.appendChild(body);
+          list.appendChild(row);
+        } else {
+          const t = item.data;
+          const row = el("div", "flex items-center gap-3 px-3.5 py-2.5 border border-indigo-200 rounded-xl bg-indigo-50/40");
+          const check = el("button", "w-5 h-5 rounded-full border flex items-center justify-center shrink-0 " +
+            (t.status === "Done" ? "bg-indigo-500 border-indigo-500 text-white" : "border-gray-300 text-transparent hover:border-indigo-400"));
+          check.innerHTML = t.status === "Done" ? "&#10003;" : "";
+          check.addEventListener("click", (e) => { e.stopPropagation(); toggleDone(t); });
+          row.appendChild(check);
+          const body = el("div", "flex-1 min-w-0");
+          body.appendChild(el("p", "text-sm font-medium " + (t.status === "Done" ? "text-gray-400 line-through" : "text-gray-900"), t.title));
+          body.appendChild(el("p", "text-xs text-gray-500 mt-0.5", fmt12Hour(t.deadlineTime) + (t.project ? " · " + t.project : "")));
+          row.appendChild(body);
+          if (t.type) row.appendChild(el("span", "text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 shrink-0", t.type));
+          list.appendChild(row);
         }
-        if (selectedCalendarIds.length > 1 && ev._calName) timeLabel += " · " + ev._calName;
-        body.appendChild(el("p", "text-xs text-gray-500 mt-0.5", timeLabel));
-        row.appendChild(body);
-        list.appendChild(row);
       });
       scheduleSection.appendChild(list);
     }
     container.appendChild(scheduleSection);
   }
 
-  const dueTasks = tasks.filter((t) => t.deadline === dayStr);
   const tasksSection = el("div");
-  tasksSection.appendChild(el("p", "text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2", `Tasks due this day · ${dueTasks.length}`));
-  if (dueTasks.length === 0) {
-    tasksSection.appendChild(el("p", "text-sm text-gray-400", "Nothing due this day."));
+  tasksSection.appendChild(el("p", "text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2", `Tasks due this day, no set time · ${untimedTasks.length}`));
+  if (untimedTasks.length === 0) {
+    tasksSection.appendChild(el("p", "text-sm text-gray-400", "Nothing else due this day."));
   } else {
     const rows = el("div", "flex flex-col gap-2");
-    dueTasks.forEach((t) => rows.appendChild(buildRow(t)));
+    untimedTasks.forEach((t) => rows.appendChild(buildRow(t)));
     tasksSection.appendChild(rows);
   }
   container.appendChild(tasksSection);
@@ -752,6 +800,7 @@ const mTitle = document.getElementById("m-title");
 const mPriority = document.getElementById("m-priority");
 const mEnergy = document.getElementById("m-energy");
 const mDeadline = document.getElementById("m-deadline");
+const mDeadlineTime = document.getElementById("m-deadline-time");
 const mEstimate = document.getElementById("m-estimate");
 const mRecurrence = document.getElementById("m-recurrence");
 const mNotes = document.getElementById("m-notes");
@@ -778,13 +827,14 @@ function openAddModal() {
   addError.classList.add("hidden");
   state.draft = {
     title, project, type, priority: "Medium", energy: "Medium",
-    deadline: "", estimate: "", recurrence: "None", notes: ""
+    deadline: "", deadlineTime: "", estimate: "", recurrence: "None", notes: ""
   };
   mTitle.value = title;
   mType.value = type;
   mPriority.value = "Medium";
   mEnergy.value = "Medium";
   mDeadline.value = "";
+  mDeadlineTime.value = "";
   mEstimate.value = "";
   mRecurrence.value = "None";
   mNotes.value = "";
@@ -813,6 +863,7 @@ mType.addEventListener("change", (e) => { state.draft.type = e.target.value; upd
 mPriority.addEventListener("change", (e) => { state.draft.priority = e.target.value; });
 mEnergy.addEventListener("change", (e) => { state.draft.energy = e.target.value; });
 mDeadline.addEventListener("change", (e) => { state.draft.deadline = e.target.value; });
+mDeadlineTime.addEventListener("change", (e) => { state.draft.deadlineTime = e.target.value; });
 mEstimate.addEventListener("change", (e) => { state.draft.estimate = e.target.value; });
 mRecurrence.addEventListener("change", (e) => { state.draft.recurrence = e.target.value; });
 mNotes.addEventListener("change", (e) => { state.draft.notes = e.target.value; });
@@ -822,7 +873,7 @@ createTaskBtn.addEventListener("click", async () => {
   const d = state.draft;
   await createTask({
     title: d.title.trim(), notes: d.notes || "", project: d.project.trim(), type: d.type.trim(),
-    priority: d.priority, status: "To do", deadline: d.deadline, estimate: d.estimate,
+    priority: d.priority, status: "To do", deadline: d.deadline, deadlineTime: d.deadlineTime, estimate: d.estimate,
     energy: d.energy, recurrence: d.recurrence, starred: false
   });
   quickTitle.value = "";
@@ -910,6 +961,7 @@ doImportBtn.addEventListener("click", async () => {
       priority: importPriority.value,
       status: "To do",
       deadline: "",
+      deadlineTime: "",
       estimate: "",
       energy: "Medium",
       recurrence: "None",
