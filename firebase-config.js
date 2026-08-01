@@ -13,3 +13,11 @@ export const firebaseConfig = {
 };
 
 export const firebaseApp = initializeApp(firebaseConfig);
+
+// ---------------------------------------------------------------
+// For the read-only Calendar view — a separate Google Cloud OAuth
+// client (not the same as the Firebase apiKey above). See the
+// "Calendar view setup" section in README.md for how to get this.
+// ---------------------------------------------------------------
+export const GOOGLE_CALENDAR_CLIENT_ID = "537743088514-v9et2al3bt347qqqgfbabaf2tb0neicp.apps.googleusercontent.com";
+
