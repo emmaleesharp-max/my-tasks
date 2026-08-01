@@ -7,6 +7,12 @@ import {
   onSnapshot, query, orderBy, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch((err) => console.warn("SW registration failed:", err));
+  });
+}
+
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
 
@@ -24,10 +30,11 @@ const VIEWS = ["list", "board", "project", "type"];
 const state = {
   view: "list",
   search: "",
-  hideDone: false,
+  hideDone: localStorage.getItem("hideDone") === "true",
   filterPriority: "All",
   filterEnergy: "All",
   filterType: "All",
+  filterProject: "All",
   expandedId: null,
   showAddModal: false,
   draft: null
@@ -145,6 +152,7 @@ function filteredTasks() {
     if (state.filterPriority !== "All" && t.priority !== state.filterPriority) return false;
     if (state.filterEnergy !== "All" && t.energy !== state.filterEnergy) return false;
     if (state.filterType !== "All" && t.type !== state.filterType) return false;
+    if (state.filterProject !== "All" && t.project !== state.filterProject) return false;
     if (state.search) {
       const s = state.search.toLowerCase();
       const hit = [t.title, t.project, t.type].some((v) => (v || "").toLowerCase().includes(s));
@@ -424,6 +432,7 @@ const hideDoneInput = document.getElementById("hide-done");
 const filterPriority = document.getElementById("filter-priority");
 const filterEnergy = document.getElementById("filter-energy");
 const filterType = document.getElementById("filter-type");
+const filterProject = document.getElementById("filter-project");
 const quickTitle = document.getElementById("quick-title");
 const quickProjectContainer = document.getElementById("quick-project");
 const quickType = document.getElementById("quick-type");
@@ -431,22 +440,32 @@ let quickProjectValue = "";
 const addError = document.getElementById("add-error");
 
 searchInput.addEventListener("input", (e) => { state.search = e.target.value; render(); });
-hideDoneInput.addEventListener("change", (e) => { state.hideDone = e.target.checked; render(); });
+hideDoneInput.addEventListener("change", (e) => {
+  state.hideDone = e.target.checked;
+  localStorage.setItem("hideDone", state.hideDone);
+  render();
+});
 filterPriority.addEventListener("change", (e) => { state.filterPriority = e.target.value; render(); });
 filterEnergy.addEventListener("change", (e) => { state.filterEnergy = e.target.value; render(); });
 filterType.addEventListener("change", (e) => { state.filterType = e.target.value; render(); });
+filterProject.addEventListener("change", (e) => { state.filterProject = e.target.value; render(); });
 
 document.querySelectorAll(".view-btn").forEach((btn) => {
   btn.addEventListener("click", () => { state.view = btn.dataset.view; render(); });
 });
 
 function renderChrome() {
+  hideDoneInput.checked = state.hideDone;
   document.querySelectorAll(".view-btn").forEach((btn) => {
     const active = btn.dataset.view === state.view;
     btn.className = "view-btn inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border " +
       (active ? "bg-gray-900 text-white border-gray-900" : "border-gray-200 text-gray-600 hover:bg-gray-50");
   });
   mountCombo(quickProjectContainer, quickProjectValue, uniqueValues("project"), (v) => { quickProjectValue = v; renderChrome(); }, "Project *");
+  const currentProjectFilter = filterProject.value;
+  filterProject.innerHTML = '<option value="All">Any project</option>';
+  uniqueValues("project").forEach((p) => { const o = document.createElement("option"); o.value = p; o.textContent = p; filterProject.appendChild(o); });
+  filterProject.value = currentProjectFilter || "All";
 }
 
 function render() {
@@ -637,6 +656,62 @@ doImportBtn.addEventListener("click", async () => {
   }
   doImportBtn.textContent = "Import tasks";
   closeImportModal();
+});
+
+// ---------- Rename project ----------
+const renameModal = document.getElementById("rename-modal");
+const openRenameBtn = document.getElementById("open-rename-btn");
+const closeRenameBtn = document.getElementById("close-rename-btn");
+const cancelRenameBtn = document.getElementById("cancel-rename-btn");
+const doRenameBtn = document.getElementById("do-rename-btn");
+const renameFrom = document.getElementById("rename-from");
+const renameTo = document.getElementById("rename-to");
+const renameCount = document.getElementById("rename-count");
+
+function updateRenameCount() {
+  const n = renameFrom.value ? tasks.filter((t) => t.project === renameFrom.value).length : 0;
+  renameCount.textContent = renameFrom.value ? `Will update ${n} task${n === 1 ? "" : "s"}.` : "";
+}
+
+function updateRenameBtnState() {
+  const to = renameTo.value.trim();
+  doRenameBtn.disabled = !renameFrom.value || !to || to === renameFrom.value;
+}
+
+function openRenameModal() {
+  renameFrom.innerHTML = '<option value="">Select a project…</option>';
+  uniqueValues("project").forEach((p) => { const o = document.createElement("option"); o.value = p; o.textContent = p; renameFrom.appendChild(o); });
+  renameTo.value = "";
+  updateRenameCount();
+  updateRenameBtnState();
+  renameModal.classList.remove("hidden");
+}
+
+function closeRenameModal() {
+  renameModal.classList.add("hidden");
+}
+
+openRenameBtn.addEventListener("click", openRenameModal);
+closeRenameBtn.addEventListener("click", closeRenameModal);
+cancelRenameBtn.addEventListener("click", closeRenameModal);
+renameFrom.addEventListener("change", () => { updateRenameCount(); updateRenameBtnState(); });
+renameTo.addEventListener("input", updateRenameBtnState);
+
+doRenameBtn.addEventListener("click", async () => {
+  if (doRenameBtn.disabled) return;
+  const from = renameFrom.value;
+  const to = renameTo.value.trim();
+  const matching = tasks.filter((t) => t.project === from);
+  doRenameBtn.disabled = true;
+  doRenameBtn.textContent = "Renaming…";
+  try {
+    await Promise.all(matching.map((t) => patchTask(t.id, { project: to })));
+  } catch (err) {
+    console.error("Rename error:", err);
+    alert("Something went wrong renaming some tasks — check the console for details.");
+  }
+  doRenameBtn.textContent = "Rename everywhere";
+  closeRenameModal();
 });
 
 render();

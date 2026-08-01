@@ -4,6 +4,10 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>My tasks</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#4f46e5" />
+<link rel="icon" href="icons/icon-192.png" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="styles.css" />
 </head>
@@ -61,6 +65,7 @@
             <label class="inline-flex items-center gap-1.5 text-xs text-gray-500">
               <input type="checkbox" id="hide-done" /> Hide done
             </label>
+            <button id="open-rename-btn" class="text-xs text-gray-400 hover:text-indigo-600 underline underline-offset-2">Rename project</button>
           </div>
 
           <div class="flex flex-wrap items-center gap-2 mt-3">
@@ -75,6 +80,9 @@
             <select id="filter-energy" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600">
               <option value="All">Any energy</option>
               <option>Low</option><option>Medium</option><option>High</option>
+            </select>
+            <select id="filter-project" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600">
+              <option value="All">Any project</option>
             </select>
             <select id="filter-type" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600">
               <option value="All">Any type</option>
@@ -227,6 +235,35 @@
       <div class="flex justify-end gap-2 mt-5">
         <button id="cancel-import-btn" class="text-sm px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50">Cancel</button>
         <button id="do-import-btn" class="text-sm font-medium bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed" disabled>Import tasks</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rename project modal -->
+  <div id="rename-modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl border border-gray-200 w-full max-w-md p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-semibold text-gray-900">Rename project</h2>
+        <button id="close-rename-btn" class="text-gray-400 hover:text-gray-600">✕</button>
+      </div>
+      <p class="text-xs text-gray-500 mb-3">
+        This updates every task currently using this project — no need to
+        edit them one by one.
+      </p>
+
+      <label class="text-xs font-medium text-gray-500">Project to rename</label>
+      <select id="rename-from" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1">
+        <option value="">Select a project…</option>
+      </select>
+
+      <label class="text-xs font-medium text-gray-500 mt-3 block">New name</label>
+      <input id="rename-to" class="w-full text-sm px-2.5 py-1.5 rounded-md border border-gray-200 mt-1" placeholder="New project name" />
+
+      <p id="rename-count" class="text-xs text-gray-400 mt-2"></p>
+
+      <div class="flex justify-end gap-2 mt-5">
+        <button id="cancel-rename-btn" class="text-sm px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50">Cancel</button>
+        <button id="do-rename-btn" class="text-sm font-medium bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed" disabled>Rename everywhere</button>
       </div>
     </div>
   </div>
