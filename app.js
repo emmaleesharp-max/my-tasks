@@ -1,4 +1,4 @@
-import { firebaseApp } from "./firebase-config.js";
+import { firebaseApp, GOOGLE_CALENDAR_CLIENT_ID } from "./firebase-config.js";
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -25,7 +25,7 @@ const ENERGIES = ["Low", "Medium", "High"];
 const RECURRENCES = ["None", "Daily", "Weekly", "Monthly"];
 const ESTIMATES = ["5 minutes", "15 minutes", "30 minutes", "60 minutes", "Over an hour"];
 const TYPES = ["Email", "Meeting", "Finance", "Errand", "Admin"];
-const VIEWS = ["list", "board", "project", "type"];
+const VIEWS = ["list", "board", "project", "type", "calendar"];
 
 const state = {
   view: "list",
@@ -425,6 +425,270 @@ function renderGrouped(container, fieldName) {
   });
 }
 
+// ---------- Calendar view ----------
+let calendarAccessToken = null;
+let calendarTokenClient = null;
+let calendarDayOffset = 0;
+let calendarEvents = [];
+let calendarLoading = false;
+let calendarError = "";
+let calendarList = [];
+let calendarListLoading = false;
+let selectedCalendarIds = JSON.parse(localStorage.getItem("selectedCalendarIds") || "[]");
+let showCalendarPicker = false;
+
+function dateForOffset(offset) {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d;
+}
+
+function isoDateStr(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function ensureGisClient() {
+  if (calendarTokenClient || !window.google || !window.google.accounts) return;
+  calendarTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CALENDAR_CLIENT_ID,
+    scope: "https://www.googleapis.com/auth/calendar.readonly",
+    callback: (response) => {
+      if (response.error) {
+        calendarError = "Couldn't connect to Google Calendar. Please try again.";
+        render();
+        return;
+      }
+      calendarAccessToken = response.access_token;
+      calendarError = "";
+      fetchCalendarList();
+    }
+  });
+}
+
+function connectCalendar() {
+  ensureGisClient();
+  if (!calendarTokenClient) {
+    calendarError = "Google sign-in library hasn't loaded yet — check your connection and try again.";
+    render();
+    return;
+  }
+  calendarTokenClient.requestAccessToken();
+}
+
+async function fetchCalendarList() {
+  if (!calendarAccessToken) return;
+  calendarListLoading = true;
+  render();
+  try {
+    const res = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList", {
+      headers: { Authorization: "Bearer " + calendarAccessToken }
+    });
+    if (res.status === 401) {
+      calendarAccessToken = null;
+      calendarError = "Your calendar connection expired — click Connect to reconnect.";
+      calendarListLoading = false;
+      render();
+      return;
+    }
+    const data = await res.json();
+    calendarList = (data.items || []).map((c) => ({
+      id: c.id,
+      summary: c.summaryOverride || c.summary,
+      color: c.backgroundColor || "#4f46e5",
+      primary: !!c.primary
+    }));
+    // First time connecting: nothing selected yet, so surface the picker
+    if (selectedCalendarIds.length === 0) showCalendarPicker = true;
+    calendarError = "";
+  } catch (err) {
+    console.error("Calendar list error:", err);
+    calendarError = "Couldn't load your list of calendars.";
+  }
+  calendarListLoading = false;
+  render();
+  if (selectedCalendarIds.length > 0) fetchCalendarEvents();
+}
+
+function toggleCalendarSelection(id) {
+  if (selectedCalendarIds.includes(id)) {
+    selectedCalendarIds = selectedCalendarIds.filter((x) => x !== id);
+  } else {
+    selectedCalendarIds = [...selectedCalendarIds, id];
+  }
+  localStorage.setItem("selectedCalendarIds", JSON.stringify(selectedCalendarIds));
+  render();
+  fetchCalendarEvents();
+}
+
+async function fetchCalendarEvents() {
+  if (!calendarAccessToken || selectedCalendarIds.length === 0) {
+    calendarEvents = [];
+    render();
+    return;
+  }
+  calendarLoading = true;
+  render();
+  const day = dateForOffset(calendarDayOffset);
+  const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(day); dayEnd.setHours(23, 59, 59, 999);
+  const params = new URLSearchParams({
+    timeMin: dayStart.toISOString(),
+    timeMax: dayEnd.toISOString(),
+    singleEvents: "true",
+    orderBy: "startTime"
+  });
+  try {
+    const results = await Promise.all(selectedCalendarIds.map(async (calId) => {
+      const meta = calendarList.find((c) => c.id === calId);
+      const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?${params}`, {
+        headers: { Authorization: "Bearer " + calendarAccessToken }
+      });
+      if (res.status === 401) throw new Error("expired");
+      const data = await res.json();
+      return (data.items || []).map((ev) => ({ ...ev, _calColor: meta ? meta.color : "#4f46e5", _calName: meta ? meta.summary : "" }));
+    }));
+    calendarEvents = results.flat().sort((a, b) => {
+      const aTime = a.start && a.start.dateTime ? a.start.dateTime : "0000";
+      const bTime = b.start && b.start.dateTime ? b.start.dateTime : "0000";
+      return aTime.localeCompare(bTime);
+    });
+    calendarError = "";
+  } catch (err) {
+    if (err.message === "expired") {
+      calendarAccessToken = null;
+      calendarError = "Your calendar connection expired — click Connect to reconnect.";
+    } else {
+      console.error("Calendar fetch error:", err);
+      calendarError = "Couldn't load your calendar events.";
+    }
+    calendarEvents = [];
+  }
+  calendarLoading = false;
+  render();
+}
+
+function fmtTime(dateObj) {
+  return dateObj.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function renderCalendar(container) {
+  const day = dateForOffset(calendarDayOffset);
+  const dayStr = isoDateStr(day);
+  const isToday = calendarDayOffset === 0;
+
+  const header = el("div", "flex items-center justify-between mb-1");
+  const nav = el("div", "flex items-center gap-2");
+  const prevBtn = el("button", "text-sm px-2.5 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50", "←");
+  prevBtn.addEventListener("click", () => { calendarDayOffset -= 1; if (calendarAccessToken) fetchCalendarEvents(); else render(); });
+  const todayBtn = el("button", "text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50", "Today");
+  todayBtn.addEventListener("click", () => { calendarDayOffset = 0; if (calendarAccessToken) fetchCalendarEvents(); else render(); });
+  const nextBtn = el("button", "text-sm px-2.5 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50", "→");
+  nextBtn.addEventListener("click", () => { calendarDayOffset += 1; if (calendarAccessToken) fetchCalendarEvents(); else render(); });
+  nav.appendChild(prevBtn); nav.appendChild(todayBtn); nav.appendChild(nextBtn);
+
+  const dateLabel = el("p", "text-sm font-semibold text-gray-900", day.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) + (isToday ? " · Today" : ""));
+
+  header.appendChild(nav);
+  header.appendChild(dateLabel);
+  const rightSlot = el("div");
+  if (calendarAccessToken) {
+    const manageBtn = el("button", "text-xs text-gray-400 hover:text-indigo-600 underline underline-offset-2", "Calendars");
+    manageBtn.addEventListener("click", () => { showCalendarPicker = !showCalendarPicker; render(); });
+    rightSlot.appendChild(manageBtn);
+  }
+  header.appendChild(rightSlot);
+  container.appendChild(header);
+
+  if (calendarAccessToken && selectedCalendarIds.length > 0 && !showCalendarPicker) {
+    const names = selectedCalendarIds.map((id) => { const c = calendarList.find((x) => x.id === id); return c ? c.summary : null; }).filter(Boolean);
+    container.appendChild(el("p", "text-[11px] text-gray-400 mb-4", "Showing: " + (names.join(", ") || "…")));
+  } else {
+    container.appendChild(el("div", "mb-3"));
+  }
+
+  if (calendarError) {
+    container.appendChild(el("p", "text-xs text-rose-500 mb-3", calendarError));
+  }
+
+  if (!calendarAccessToken) {
+    const connectBox = el("div", "border border-dashed border-gray-300 rounded-xl p-6 text-center mb-6");
+    connectBox.appendChild(el("p", "text-sm text-gray-500 mb-3", "Connect your Google Calendar to see today's meetings alongside your tasks."));
+    const connectBtn = el("button", "text-sm font-medium bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700", "Connect Google Calendar");
+    connectBtn.addEventListener("click", connectCalendar);
+    connectBox.appendChild(connectBtn);
+    container.appendChild(connectBox);
+  } else if (calendarListLoading) {
+    container.appendChild(el("p", "text-sm text-gray-400 mb-6", "Loading your calendars…"));
+  } else if (showCalendarPicker) {
+    const pickerBox = el("div", "border border-gray-200 rounded-xl p-4 mb-6");
+    pickerBox.appendChild(el("p", "text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3", "Which calendars should show up here?"));
+    if (calendarList.length === 0) {
+      pickerBox.appendChild(el("p", "text-sm text-gray-400", "No calendars found."));
+    } else {
+      calendarList.forEach((c) => {
+        const row = el("label", "flex items-center gap-2.5 py-1.5 cursor-pointer");
+        const cb = el("input");
+        cb.type = "checkbox";
+        cb.checked = selectedCalendarIds.includes(c.id);
+        cb.addEventListener("change", () => toggleCalendarSelection(c.id));
+        const dot = el("span", "w-2.5 h-2.5 rounded-full shrink-0");
+        dot.style.backgroundColor = c.color;
+        const label = el("span", "text-sm text-gray-700", c.summary + (c.primary ? " (primary)" : ""));
+        row.appendChild(cb); row.appendChild(dot); row.appendChild(label);
+        pickerBox.appendChild(row);
+      });
+    }
+    const doneBtn = el("button", "text-sm font-medium bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 mt-3", "Done");
+    doneBtn.addEventListener("click", () => { showCalendarPicker = false; render(); });
+    pickerBox.appendChild(doneBtn);
+    container.appendChild(pickerBox);
+  } else if (selectedCalendarIds.length === 0) {
+    container.appendChild(el("p", "text-sm text-gray-400 mb-6", "No calendars selected yet — click \"Calendars\" above to choose which ones to show."));
+  } else if (calendarLoading) {
+    container.appendChild(el("p", "text-sm text-gray-400 mb-6", "Loading your calendar…"));
+  } else {
+    const scheduleSection = el("div", "mb-6");
+    scheduleSection.appendChild(el("p", "text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2", "Your schedule"));
+    if (calendarEvents.length === 0) {
+      scheduleSection.appendChild(el("p", "text-sm text-gray-400", "Nothing on your calendar this day."));
+    } else {
+      const list = el("div", "flex flex-col gap-2");
+      calendarEvents.forEach((ev) => {
+        const row = el("div", "flex items-start gap-3 px-3.5 py-2.5 border border-gray-200 rounded-xl bg-white");
+        const bar = el("span", "w-1 self-stretch rounded-full shrink-0");
+        bar.style.backgroundColor = ev._calColor || "#4f46e5";
+        row.appendChild(bar);
+        const body = el("div", "flex-1 min-w-0");
+        body.appendChild(el("p", "text-sm font-medium text-gray-900", ev.summary || "(No title)"));
+        let timeLabel = "All day";
+        if (ev.start && ev.start.dateTime) {
+          const s = new Date(ev.start.dateTime);
+          const e = ev.end && ev.end.dateTime ? new Date(ev.end.dateTime) : null;
+          timeLabel = fmtTime(s) + (e ? " – " + fmtTime(e) : "");
+        }
+        if (selectedCalendarIds.length > 1 && ev._calName) timeLabel += " · " + ev._calName;
+        body.appendChild(el("p", "text-xs text-gray-500 mt-0.5", timeLabel));
+        row.appendChild(body);
+        list.appendChild(row);
+      });
+      scheduleSection.appendChild(list);
+    }
+    container.appendChild(scheduleSection);
+  }
+
+  const dueTasks = tasks.filter((t) => t.deadline === dayStr);
+  const tasksSection = el("div");
+  tasksSection.appendChild(el("p", "text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2", `Tasks due this day · ${dueTasks.length}`));
+  if (dueTasks.length === 0) {
+    tasksSection.appendChild(el("p", "text-sm text-gray-400", "Nothing due this day."));
+  } else {
+    const rows = el("div", "flex flex-col gap-2");
+    dueTasks.forEach((t) => rows.appendChild(buildRow(t)));
+    tasksSection.appendChild(rows);
+  }
+  container.appendChild(tasksSection);
+}
+
 // ---------- Controls / chrome ----------
 const contentEl = document.getElementById("content");
 const searchInput = document.getElementById("search-input");
@@ -475,6 +739,7 @@ function render() {
   else if (state.view === "board") renderBoard(contentEl);
   else if (state.view === "project") renderGrouped(contentEl, "project");
   else if (state.view === "type") renderGrouped(contentEl, "type");
+  else if (state.view === "calendar") renderCalendar(contentEl);
 }
 
 // ---------- Add modal ----------

@@ -1,10 +1,11 @@
-# Personal Task Tracker
+# Ledger — a personal task tracker
 
 A task tracker built around how you actually think about work: every task
-has a **project** (what it's for) and a **type** (what kind of work it is —
-Email follow-up, Legal/contracts, Creative writing, etc.), so you can view
-your list by project or by type for time-blocking. Synced across your
-devices via Firebase, hosted for free on GitHub Pages.
+has a **project** (what it's for, free text — e.g. "Q3 launch," "Client X")
+and a **type** (what kind of work it is, from a fixed list: Email, Meeting,
+Finance, Errand, Admin), so you can view your list by project or by type
+for time-blocking. Synced across your devices via Firebase, hosted for free
+on GitHub Pages.
 
 No build step — plain HTML/CSS/JS (styled with the Tailwind CDN build), so
 you can open `index.html` directly or drop it straight into GitHub Pages.
@@ -87,6 +88,63 @@ forwarded to a Gmail "+" alias into tasks automatically, using this same
 schema. See `email-import/README.md` for setup — it's independent of the
 steps above and can be added any time.
 
+## Installing on your phone
+
+The app has a web manifest and icons, so it installs like a real app:
+
+- **Android (Chrome)**: open your GitHub Pages URL → tap **⋮** → **Install
+  app** (or "Add to Home screen"). If that option doesn't show up, this is
+  a known intermittent Chrome/Android bug unrelated to this app — try
+  reloading the page once or twice, or check for a Chrome update.
+- **iPhone (Safari)**: open the URL → tap the Share icon → **Add to Home
+  Screen**. Note: iOS only supports this from Safari, not Chrome, since
+  Apple restricts other browsers from offering it.
+
+Either way, it opens full-screen with its own icon, no browser bar.
+
+## 6. (Optional) Calendar view setup
+
+The **Calendar** tab shows a day at a time — your real Google Calendar
+events alongside any tasks due that day — so you can plan your day around
+meetings. It's read-only: nothing in the app ever writes to your calendar.
+
+This needs a separate Google Cloud credential (not the Firebase config from
+step 2 — same underlying project, different piece).
+
+1. Go to https://console.cloud.google.com and make sure the project
+   selector (top left, next to "Google Cloud") shows your Firebase
+   project — e.g. "my-tasks-dd101". If not, select it.
+2. In the search bar at the top, search for **"Google Calendar API"** and
+   open it, then click **Enable**.
+3. Go to **APIs & Services → Credentials** (search "Credentials" if you
+   don't see it in the sidebar).
+4. Click **Create Credentials → OAuth client ID**.
+   - If prompted to configure a consent screen first: choose **External**,
+     fill in an app name (e.g. "My tasks") and your email for the required
+     fields, save through the steps. On the "Test users" step, add your own
+     Google email — this keeps it private to just you, no Google review
+     needed.
+5. Back on **Create OAuth client ID**: Application type → **Web
+   application**. Under **Authorized JavaScript origins**, click **Add
+   URI** and enter your GitHub Pages address *without* a trailing slash,
+   e.g. `https://your-username.github.io`.
+6. Click **Create**. Copy the **Client ID** shown (ends in
+   `.apps.googleusercontent.com`).
+7. Open `firebase-config.js` and paste it in as `GOOGLE_CALENDAR_CLIENT_ID`,
+   replacing the placeholder.
+
+Re-upload `firebase-config.js` to GitHub, then open the Calendar tab and
+click **Connect Google Calendar** — the first time, Google will show a
+warning that the app is unverified (expected, since you're the only test
+user) — click through **Advanced → Go to [app name] (unsafe)** to proceed;
+this is safe since it's your own app requesting read-only access to your
+own calendar.
+
+Note: the connection only lasts for your current browser session — you'll
+need to click Connect again next time you open the app. That's a
+deliberate simplicity trade-off, not a bug; a persistent connection would
+need a more involved setup.
+
 ## How it works
 
 - **Auth**: Google sign-in via Firebase Auth — this is what lets your data
@@ -94,13 +152,24 @@ steps above and can be added any time.
 - **Storage**: Firestore, under `users/{your-uid}/tasks/{taskId}`, synced
   live — edits on one device appear on others within a second or two.
 - **Adding a task**: type a title, project, and type in the top bar (both
-  required — existing types show up as one-click tags so your labels stay
-  consistent) and press **Add**. A popup opens with everything else —
-  priority, energy, deadline, estimate, context, repeats — visible at once,
-  no scrolling. "Create task" stays disabled until title/project/type are
-  filled.
+  required — Project is a dropdown of everything you've used before, and
+  you can type a new one to create it on the fly; Type is a fixed list of
+  five options so it can't drift into dozens of one-off categories) and
+  press **Add**. A popup opens with everything else — priority, energy,
+  deadline, estimate, repeats, and a free-form details box — visible at
+  once, no scrolling. "Create task" stays disabled until title/project/type
+  are filled.
 - **Editing a task**: click any task row to expand it in place and edit any
-  field directly.
+  field directly, including the title.
+- **Importing tasks**: click **Import** next to Add. Paste a list of tasks
+  — one per line. Plain lines (e.g. copied from Google Tasks or a Notion
+  list) use the project/type you set in the dialog. If you instead copy two
+  columns from a spreadsheet (Title, then Project, then optionally Type),
+  each row uses its own values, so you can import a plan spanning several
+  projects in one paste.
+- **Renaming a project**: click **Rename project** (small link next to
+  "Hide done"). Pick the project and type its new name — every task
+  currently using it updates in one go, no need to edit them one by one.
 - **Recurring tasks**: marking a repeating task done automatically creates
   the next occurrence, rolled forward by the chosen interval.
 - **Views**:
@@ -108,8 +177,16 @@ steps above and can be added any time.
   - **Board** — To do / Done, side by side
   - **Project** — grouped by project
   - **Type** — grouped by type, for time-blocking similar work together
-- **Filters**: search, priority, energy, and context, plus a "hide done"
-  toggle — all apply across every view.
+  - **Calendar** — one day at a time: your real Google Calendar events next
+    to tasks due that day, with Previous/Today/Next navigation (optional,
+    needs the setup in section 6 below). Supports multiple calendars — the
+    first time you connect, you'll pick which of your calendars to include
+    (none are shown by default), and can change that anytime via the
+    "Calendars" link. Each calendar's events are color-coded to match its
+    color in Google Calendar.
+- **Filters**: search, priority, energy, project, and type, plus a "hide
+  done" toggle — all apply across every view, so you can also isolate a
+  single project while in List or Board view, not just the Project tab.
 - **Cost**: Firebase's free "Spark" tier comfortably covers personal use —
   there's no billing setup required to get started.
 
@@ -117,15 +194,15 @@ steps above and can be added any time.
 
 | Field | Notes |
 |---|---|
-| Title | required |
-| Project | required — free text, autocompletes from past entries |
-| Type | required — free text, shown as one-click tags from past entries |
+| Title | required, editable any time |
+| Project | required — dropdown of past entries, or type a new one to create it |
+| Type | required — fixed list: Email, Meeting, Finance, Errand, Admin |
 | Priority | Low / Medium / High |
 | Status | To do / Done |
 | Deadline | optional date |
-| Estimate | optional, in minutes |
+| Estimate | optional — 5 / 15 / 30 / 60 minutes, or Over an hour |
 | Energy | Low / Medium / High |
-| Context | optional free text, e.g. Desk, Calls, Errands, Anywhere |
+| Details | optional free-form notes |
 | Repeats | None / Daily / Weekly / Monthly |
 
 ## Customizing
@@ -135,5 +212,9 @@ steps above and can be added any time.
   `styles.css` only holds the few things Tailwind's CDN build can't do
   (focus rings, reduced-motion).
 - Add more recurrence options in the `nextDueDate()` function in `app.js`.
+- To change the fixed Type list: update the `TYPES` constant near the top
+  of `app.js` (this drives the row editor automatically), and also update
+  the three static `<option>` lists in `index.html` — the quick-add bar,
+  the New task modal, and the filter dropdown — to match.
 - Everything is vanilla JS with no framework or bundler — edit directly and
   refresh the page to see changes.
