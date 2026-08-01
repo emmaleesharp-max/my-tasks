@@ -705,19 +705,7 @@ function renderCalendar(container) {
           row.appendChild(body);
           list.appendChild(row);
         } else {
-          const t = item.data;
-          const row = el("div", "flex items-center gap-3 px-3.5 py-2.5 border border-indigo-200 rounded-xl bg-indigo-50/40");
-          const check = el("button", "w-5 h-5 rounded-full border flex items-center justify-center shrink-0 " +
-            (t.status === "Done" ? "bg-indigo-500 border-indigo-500 text-white" : "border-gray-300 text-transparent hover:border-indigo-400"));
-          check.innerHTML = t.status === "Done" ? "&#10003;" : "";
-          check.addEventListener("click", (e) => { e.stopPropagation(); toggleDone(t); });
-          row.appendChild(check);
-          const body = el("div", "flex-1 min-w-0");
-          body.appendChild(el("p", "text-sm font-medium " + (t.status === "Done" ? "text-gray-400 line-through" : "text-gray-900"), t.title));
-          body.appendChild(el("p", "text-xs text-gray-500 mt-0.5", fmt12Hour(t.deadlineTime) + (t.project ? " · " + t.project : "")));
-          row.appendChild(body);
-          if (t.type) row.appendChild(el("span", "text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 shrink-0", t.type));
-          list.appendChild(row);
+          list.appendChild(buildRow(item.data));
         }
       });
       scheduleSection.appendChild(list);
