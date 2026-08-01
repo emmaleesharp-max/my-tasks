@@ -104,7 +104,13 @@ async function removeTask(id) {
 }
 
 // ---------- Helpers ----------
-function todayStr() { return new Date().toISOString().slice(0, 10); }
+function localDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function todayStr() { return localDateStr(new Date()); }
 function isOverdue(t) { return t.deadline && t.deadline < todayStr() && t.status !== "Done"; }
 function fmtDate(str) {
   if (!str) return "";
@@ -124,7 +130,7 @@ function nextDueDate(dateStr, recurrence) {
   if (recurrence === "Daily") d.setDate(d.getDate() + 1);
   else if (recurrence === "Weekly") d.setDate(d.getDate() + 7);
   else if (recurrence === "Monthly") d.setMonth(d.getMonth() + 1);
-  return d.toISOString().slice(0, 10);
+  return localDateStr(d);
 }
 function uniqueValues(field) {
   return [...new Set(tasks.map((t) => t[field]).filter(Boolean))].sort();
@@ -451,7 +457,7 @@ function dateForOffset(offset) {
 }
 
 function isoDateStr(d) {
-  return d.toISOString().slice(0, 10);
+  return localDateStr(d);
 }
 
 function ensureGisClient() {
