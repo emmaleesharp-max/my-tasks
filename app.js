@@ -243,6 +243,10 @@ function buildRow(t) {
   const body = el("div", "flex-1 min-w-0");
   const title = el("p", "text-sm font-medium " + (t.status === "Done" ? "text-gray-400 line-through" : "text-gray-900"), t.title);
   const meta = el("div", "flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-gray-500");
+  if (t.deadline) {
+    const dateLabel = fmtDate(t.deadline) + (t.deadlineTime ? " · " + fmt12Hour(t.deadlineTime) : "");
+    meta.appendChild(el("span", "font-medium " + (isOverdue(t) ? "text-rose-600" : "text-gray-500"), dateLabel));
+  }
   if (t.project) meta.appendChild(el("span", null, "📁 " + t.project));
   if (t.type) meta.appendChild(el("span", "px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600", t.type));
   if (t.estimate) meta.appendChild(el("span", null, "⏱ " + t.estimate));
@@ -256,10 +260,6 @@ function buildRow(t) {
   starBtn.title = t.starred ? "Unstar" : "Star";
   starBtn.addEventListener("click", (e) => { e.stopPropagation(); patchTask(t.id, { starred: !t.starred }); });
   right.appendChild(starBtn);
-  if (t.deadline) {
-    const dateLabel = fmtDate(t.deadline) + (t.deadlineTime ? " · " + fmt12Hour(t.deadlineTime) : "");
-    right.appendChild(el("span", "text-xs font-medium " + (isOverdue(t) ? "text-rose-600" : "text-gray-500"), dateLabel));
-  }
   right.appendChild(el("span", "text-gray-400 text-xs", isOpen ? "▾" : "▸"));
 
   header.appendChild(check);
