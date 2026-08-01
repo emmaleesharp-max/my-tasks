@@ -140,10 +140,15 @@ user) — click through **Advanced → Go to [app name] (unsafe)** to proceed;
 this is safe since it's your own app requesting read-only access to your
 own calendar.
 
-Note: the connection survives normal page refreshes (it's remembered for
-your browser tab via sessionStorage), but clears when you close the tab or
-after about 55 minutes, matching how long Google's access token actually
-lasts — you'll need to click Connect again after either of those.
+Note: the connection survives closing the tab and normal refreshes (it's
+remembered on this device via localStorage), but clears after about 55
+minutes, matching how long Google's access token actually lasts. When that
+happens, the app automatically tries to reconnect silently in the
+background the next time you open the Calendar tab — no click needed if
+it works. This isn't guaranteed every time (browsers increasingly restrict
+this kind of background reconnection for privacy reasons), so if it can't,
+you'll just see the normal "Connect Google Calendar" button, same as
+before.
 
 ## How it works
 

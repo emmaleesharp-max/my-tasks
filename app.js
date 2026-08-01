@@ -420,22 +420,22 @@ function renderGrouped(container, fieldName) {
 const TOKEN_LIFETIME_MS = 55 * 60 * 1000; // treat as expired a little before Google's real ~60min cutoff
 
 function loadStoredToken() {
-  const token = sessionStorage.getItem("calendarAccessToken");
-  const savedAt = Number(sessionStorage.getItem("calendarTokenSavedAt") || 0);
+  const token = localStorage.getItem("calendarAccessToken");
+  const savedAt = Number(localStorage.getItem("calendarTokenSavedAt") || 0);
   if (token && savedAt && Date.now() - savedAt < TOKEN_LIFETIME_MS) return token;
-  sessionStorage.removeItem("calendarAccessToken");
-  sessionStorage.removeItem("calendarTokenSavedAt");
+  localStorage.removeItem("calendarAccessToken");
+  localStorage.removeItem("calendarTokenSavedAt");
   return null;
 }
 
 function saveToken(token) {
-  sessionStorage.setItem("calendarAccessToken", token);
-  sessionStorage.setItem("calendarTokenSavedAt", String(Date.now()));
+  localStorage.setItem("calendarAccessToken", token);
+  localStorage.setItem("calendarTokenSavedAt", String(Date.now()));
 }
 
 function clearStoredToken() {
-  sessionStorage.removeItem("calendarAccessToken");
-  sessionStorage.removeItem("calendarTokenSavedAt");
+  localStorage.removeItem("calendarAccessToken");
+  localStorage.removeItem("calendarTokenSavedAt");
 }
 
 let calendarAccessToken = loadStoredToken();
@@ -460,25 +460,43 @@ function isoDateStr(d) {
   return localDateStr(d);
 }
 
+let calendarSilentAttemptInProgress = false;
+
 function ensureGisClient() {
   if (calendarTokenClient || !window.google || !window.google.accounts) return;
   calendarTokenClient = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CALENDAR_CLIENT_ID,
     scope: "https://www.googleapis.com/auth/calendar.readonly",
     callback: (response) => {
+      const wasSilent = calendarSilentAttemptInProgress;
+      calendarSilentAttemptInProgress = false;
       if (response.error) {
-        calendarError = "Couldn't connect to Google Calendar. Please try again.";
-        render();
+        if (!wasSilent) {
+          calendarError = "Couldn't connect to Google Calendar. Please try again.";
+          render();
+        }
         return;
       }
       calendarAccessToken = response.access_token;
       saveToken(calendarAccessToken);
+      localStorage.setItem("calendarHasConnectedBefore", "true");
       calendarError = "";
       fetchCalendarList();
     }
   });
 }
 
+function attemptSilentReconnect() {
+  if (localStorage.getItem("calendarHasConnectedBefore") !== "true") return;
+  ensureGisClient();
+  if (!calendarTokenClient) return;
+  calendarSilentAttemptInProgress = true;
+  try {
+    calendarTokenClient.requestAccessToken({ prompt: "" });
+  } catch (err) {
+    calendarSilentAttemptInProgress = false;
+  }
+}
 
 function connectCalendar() {
   ensureGisClient();
@@ -592,6 +610,7 @@ function renderCalendar(container) {
   if (!calendarRestoreInitDone) {
     calendarRestoreInitDone = true;
     if (calendarAccessToken) fetchCalendarList();
+    else attemptSilentReconnect();
   }
 
   const day = dateForOffset(calendarDayOffset);
