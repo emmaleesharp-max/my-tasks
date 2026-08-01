@@ -140,10 +140,10 @@ user) — click through **Advanced → Go to [app name] (unsafe)** to proceed;
 this is safe since it's your own app requesting read-only access to your
 own calendar.
 
-Note: the connection only lasts for your current browser session — you'll
-need to click Connect again next time you open the app. That's a
-deliberate simplicity trade-off, not a bug; a persistent connection would
-need a more involved setup.
+Note: the connection survives normal page refreshes (it's remembered for
+your browser tab via sessionStorage), but clears when you close the tab or
+after about 55 minutes, matching how long Google's access token actually
+lasts — you'll need to click Connect again after either of those.
 
 ## How it works
 

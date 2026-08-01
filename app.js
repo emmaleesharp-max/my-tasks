@@ -439,7 +439,28 @@ function renderGrouped(container, fieldName) {
 }
 
 // ---------- Calendar view ----------
-let calendarAccessToken = null;
+const TOKEN_LIFETIME_MS = 55 * 60 * 1000; // treat as expired a little before Google's real ~60min cutoff
+
+function loadStoredToken() {
+  const token = sessionStorage.getItem("calendarAccessToken");
+  const savedAt = Number(sessionStorage.getItem("calendarTokenSavedAt") || 0);
+  if (token && savedAt && Date.now() - savedAt < TOKEN_LIFETIME_MS) return token;
+  sessionStorage.removeItem("calendarAccessToken");
+  sessionStorage.removeItem("calendarTokenSavedAt");
+  return null;
+}
+
+function saveToken(token) {
+  sessionStorage.setItem("calendarAccessToken", token);
+  sessionStorage.setItem("calendarTokenSavedAt", String(Date.now()));
+}
+
+function clearStoredToken() {
+  sessionStorage.removeItem("calendarAccessToken");
+  sessionStorage.removeItem("calendarTokenSavedAt");
+}
+
+let calendarAccessToken = loadStoredToken();
 let calendarTokenClient = null;
 let calendarDayOffset = 0;
 let calendarEvents = [];
@@ -449,6 +470,7 @@ let calendarList = [];
 let calendarListLoading = false;
 let selectedCalendarIds = JSON.parse(localStorage.getItem("selectedCalendarIds") || "[]");
 let showCalendarPicker = false;
+let calendarRestoreInitDone = false;
 
 function dateForOffset(offset) {
   const d = new Date();
@@ -472,11 +494,13 @@ function ensureGisClient() {
         return;
       }
       calendarAccessToken = response.access_token;
+      saveToken(calendarAccessToken);
       calendarError = "";
       fetchCalendarList();
     }
   });
 }
+
 
 function connectCalendar() {
   ensureGisClient();
@@ -498,6 +522,7 @@ async function fetchCalendarList() {
     });
     if (res.status === 401) {
       calendarAccessToken = null;
+      clearStoredToken();
       calendarError = "Your calendar connection expired — click Connect to reconnect.";
       calendarListLoading = false;
       render();
@@ -569,6 +594,7 @@ async function fetchCalendarEvents() {
   } catch (err) {
     if (err.message === "expired") {
       calendarAccessToken = null;
+      clearStoredToken();
       calendarError = "Your calendar connection expired — click Connect to reconnect.";
     } else {
       console.error("Calendar fetch error:", err);
@@ -585,6 +611,11 @@ function fmtTime(dateObj) {
 }
 
 function renderCalendar(container) {
+  if (!calendarRestoreInitDone) {
+    calendarRestoreInitDone = true;
+    if (calendarAccessToken) fetchCalendarList();
+  }
+
   const day = dateForOffset(calendarDayOffset);
   const dayStr = isoDateStr(day);
   const isToday = calendarDayOffset === 0;
